@@ -46,7 +46,7 @@ import {
   agentAdapterRegistry,
   resolveLegacyExecutionProviderId,
 } from "../src/lib/agents/adapters";
-import { getNvmNodeBin } from "../src/lib/agents/nvm-path";
+import { RUNTIME_PATH } from "../src/lib/agents/provider-cli";
 import {
   appendConversationTranscript,
   cleanupStaleStagingAttachments,
@@ -185,14 +185,7 @@ console.log("Initializing Cabinet database...");
 getDb();
 console.log("Database ready.");
 
-const nvmBin = getNvmNodeBin();
-const enrichedPath = [
-  `${process.env.HOME}/.local/bin`,
-  "/usr/local/bin",
-  "/opt/homebrew/bin",
-  ...(nvmBin ? [nvmBin] : []),
-  process.env.PATH,
-].join(":");
+const enrichedPath = RUNTIME_PATH;
 
 // ===== Session orchestration =====
 // PTY-specific types + lifecycle helpers live in server/pty/*. The daemon
