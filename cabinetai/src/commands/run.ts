@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import { log, success, error, warning } from "../lib/log.js";
 import { ensureApp } from "../lib/app-manager.js";
-import { openBrowser, npmCommand, spawnChild } from "../lib/process.js";
+import { openBrowser, spawnChild } from "../lib/process.js";
 import {
   bootstrapCabinetAt,
   resolveCabinetRoot,
@@ -262,20 +262,7 @@ async function runCabinet(opts: {
   const appDir = await ensureApp(version);
   log(`App directory:     ${appDir}`);
 
-  // 3. Quick doctor: auto-install deps if missing
-  if (!fs.existsSync(path.join(appDir, "node_modules", "next"))) {
-    log("Installing dependencies...");
-    const { spawnSync } = await import("child_process");
-    const result = spawnSync(npmCommand(), ["install"], {
-      cwd: appDir,
-      stdio: "inherit",
-    });
-    if (result.status !== 0) {
-      error("Failed to install dependencies");
-    }
-  }
-
-  // 4. Check for existing running server for this cabinet
+  // 3. Check for existing running server for this cabinet
   const existingPorts = readRuntimePorts(cabinetDir);
   if (existingPorts.app?.pid && isProcessAlive(existingPorts.app.pid)) {
     const origin = existingPorts.app.origin;
@@ -306,8 +293,12 @@ async function runCabinet(opts: {
   const daemonOrigin = `http://127.0.0.1:${daemonPort}`;
   const daemonWsOrigin = `ws://127.0.0.1:${daemonPort}`;
 
-  // 6. Spawn Next.js dev server
-  const nextBin = path.join(appDir, "node_modules", "next", "dist", "bin", "next");
+  // 6. Spawn the production standalone app server
+  const appServer = path.join(appDir, "server.js");
+  const daemonServer = path.join(appDir, "server", "cabinet-daemon.cjs");
+  if (!fs.existsSync(appServer) || !fs.existsSync(daemonServer)) {
+    throw new Error("Production app bundle missing runtime files. Reinstall the app bundle.");
+  }
   const appEnv = {
     // Default CABINET_APP_ORIGIN to loopback, but let process.env override
     // when the operator pinned a public hostname so next.config.ts can
@@ -315,6 +306,8 @@ async function runCabinet(opts: {
     CABINET_APP_ORIGIN: appOrigin,
     ...process.env,
     CABINET_DATA_DIR: cabinetDir,
+    HOSTNAME: process.env.HOSTNAME || "0.0.0.0",
+    NODE_ENV: "production",
     PORT: String(appPort),
     CABINET_APP_PORT: String(appPort),
     CABINET_DAEMON_PORT: String(daemonPort),
@@ -325,16 +318,17 @@ async function runCabinet(opts: {
     // CABINET_PUBLIC_DAEMON_ORIGIN explicitly only when serving behind a proxy.
   };
 
-  log("Starting Next.js server...");
-  const appChild = spawnChild(
-    process.execPath,
-    [nextBin, "dev", "-p", String(appPort)],
-    {
-      cwd: appDir,
-      stdio: "inherit",
-      env: appEnv,
-    }
-  );
+  const daemonEnv = {
+    ...appEnv,
+    NODE_PATH: [path.join(appDir, ".native"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
+  };
+
+  log("Starting production app server...");
+  const appChild = spawnChild(process.execPath, [appServer], {
+    cwd: appDir,
+    stdio: "inherit",
+    env: appEnv,
+  });
 
   updateRuntimeService(cabinetDir, "app", {
     port: appPort,
@@ -345,24 +339,17 @@ async function runCabinet(opts: {
   });
 
   // 7. Spawn daemon
-  const tsxCli = path.join(appDir, "node_modules", "tsx", "dist", "cli.mjs");
-  const daemonScript = path.join(appDir, "server", "cabinet-daemon.ts");
-
   log("Starting daemon...");
-  const daemonChild = spawnChild(
-    process.execPath,
-    [tsxCli, daemonScript],
-    {
-      cwd: appDir,
-      stdio: "inherit",
-      env: {
-        ...appEnv,
-        CABINET_DAEMON_PORT: String(daemonPort),
-        CABINET_DAEMON_URL: daemonOrigin,
-        CABINET_PUBLIC_DAEMON_ORIGIN: daemonOrigin,
-      },
-    }
-  );
+  const daemonChild = spawnChild(process.execPath, [daemonServer], {
+    cwd: appDir,
+    stdio: "inherit",
+    env: {
+      ...daemonEnv,
+      CABINET_DAEMON_PORT: String(daemonPort),
+      CABINET_DAEMON_URL: daemonOrigin,
+      CABINET_PUBLIC_DAEMON_ORIGIN: daemonOrigin,
+    },
+  });
 
   updateRuntimeService(cabinetDir, "daemon", {
     port: daemonPort,
