@@ -325,8 +325,11 @@ async function runCabinet(opts: {
     NODE_PATH: [path.join(appDir, ".native"), process.env.NODE_PATH].filter(Boolean).join(path.delimiter),
   };
 
+  const bundledNode = path.join(appDir, "bin", "node");
+  const nodeExec = fs.existsSync(bundledNode) ? bundledNode : process.execPath;
+
   log("Starting production app server...");
-  const appChild = spawnChild(process.execPath, [appServer], {
+  const appChild = spawnChild(nodeExec, [appServer], {
     cwd: appDir,
     stdio: "inherit",
     env: appEnv,
@@ -342,7 +345,7 @@ async function runCabinet(opts: {
 
   // 7. Spawn daemon
   log("Starting daemon...");
-  const daemonChild = spawnChild(process.execPath, [daemonServer], {
+  const daemonChild = spawnChild(nodeExec, [daemonServer], {
     cwd: appDir,
     stdio: "inherit",
     env: {
