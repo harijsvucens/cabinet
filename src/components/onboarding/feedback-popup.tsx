@@ -109,10 +109,16 @@ function bumpLaunchCountOncePerSession(): number {
 }
 
 function pickTrigger(count: number): Trigger | null {
-  if (count >= 6 && window.localStorage.getItem(PROMPTED_AT_6_KEY) !== "1") {
+  // Exact-match the session number: the check-in is meant to appear ONLY on
+  // the 2nd and 6th launch, not on every launch from 2 (or 6) onward. Using
+  // `>=` made it fire every session for anyone who dismissed without
+  // submitting, since "Maybe later" intentionally doesn't set the prompted-at
+  // flag. The flag check is kept as a belt-and-braces guard against a
+  // re-evaluation within the same session after a submit.
+  if (count === 6 && window.localStorage.getItem(PROMPTED_AT_6_KEY) !== "1") {
     return 6;
   }
-  if (count >= 2 && window.localStorage.getItem(PROMPTED_AT_2_KEY) !== "1") {
+  if (count === 2 && window.localStorage.getItem(PROMPTED_AT_2_KEY) !== "1") {
     return 2;
   }
   return null;
@@ -250,8 +256,9 @@ function FeedbackForm({ trigger, launchCount, onClose }: PopupProps) {
   };
 
   const dismiss = () => {
-    // "Maybe later" does NOT flip the prompted-at flag, so it fires again on
-    // the next launch within the same trigger bracket.
+    // "Maybe later" does NOT flip the prompted-at flag, but pickTrigger now
+    // matches the session count exactly (2 or 6), so dismissing simply means
+    // this trigger is missed — it won't re-prompt every subsequent launch.
     onClose();
   };
 
