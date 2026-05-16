@@ -44,6 +44,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
   ContextMenuSeparator,
+  ContextMenuLabel,
+  ContextMenuGroup,
 } from "@/components/ui/context-menu";
 import {
   Dialog,
@@ -557,60 +559,67 @@ export function TreeNode({
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuItem onClick={() => setSubPageOpen(true)}>
-            <FilePlus className="h-4 w-4 me-2" />
-            Add Sub Page
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
-            <GitBranch className="h-4 w-4 me-2" />
-            Load Knowledge
-          </ContextMenuItem>
-          <ContextMenuItem
-            disabled={importing}
-            onClick={() => importFiles(importTargetPath)}
-          >
-            {importing ? (
-              <Loader2 className="h-4 w-4 me-2 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 me-2" />
-            )}
-            Import File…
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => setCreateCabinetOpen(true)}>
-            <Archive className="h-4 w-4 me-2" />
-            Create Cabinet Here
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
-            <Pencil className="h-4 w-4 me-2" />
-            Rename
-          </ContextMenuItem>
-          {onMoveToRequest && (
-            <ContextMenuItem onClick={() => onMoveToRequest(node)}>
-              <ArrowRightLeft className="h-4 w-4 me-2" />
-              Move to…
+          <ContextMenuGroup>
+            <ContextMenuLabel>Add to this item</ContextMenuLabel>
+            <ContextMenuItem onClick={() => setSubPageOpen(true)}>
+              <FilePlus className="h-4 w-4 me-2" />
+              Add Sub Page
             </ContextMenuItem>
-          )}
-          <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path)}>
-            <Copy className="h-4 w-4 me-2" />
-            Copy Relative Path
-          </ContextMenuItem>
-          <ContextMenuItem onClick={async () => {
-            const dir = await getDataDir();
-            navigator.clipboard.writeText(`${dir}/${node.path}`);
-          }}>
-            <ClipboardCopy className="h-4 w-4 me-2" />
-            Copy Full Path
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => {
-            fetch("/api/system/open-data-dir", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subpath: node.path }),
-            });
-          }}>
-            <FolderOpen className="h-4 w-4 me-2" />
-            Open in Finder
-          </ContextMenuItem>
+            <ContextMenuItem onClick={() => setLinkRepoOpen(true)}>
+              <GitBranch className="h-4 w-4 me-2" />
+              Load Knowledge
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={importing}
+              onClick={() => importFiles(importTargetPath)}
+            >
+              {importing ? (
+                <Loader2 className="h-4 w-4 me-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 me-2" />
+              )}
+              Import File…
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => setCreateCabinetOpen(true)}>
+              <Archive className="h-4 w-4 me-2" />
+              Create Cabinet Here
+            </ContextMenuItem>
+          </ContextMenuGroup>
+          <ContextMenuSeparator />
+          <ContextMenuGroup>
+            <ContextMenuLabel>This item</ContextMenuLabel>
+            <ContextMenuItem onClick={() => { setRenameTitle(title); setRenameOpen(true); }}>
+              <Pencil className="h-4 w-4 me-2" />
+              Rename
+            </ContextMenuItem>
+            {onMoveToRequest && (
+              <ContextMenuItem onClick={() => onMoveToRequest(node)}>
+                <ArrowRightLeft className="h-4 w-4 me-2" />
+                Move to…
+              </ContextMenuItem>
+            )}
+            <ContextMenuItem onClick={() => navigator.clipboard.writeText(node.path)}>
+              <Copy className="h-4 w-4 me-2" />
+              Copy Relative Path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={async () => {
+              const dir = await getDataDir();
+              navigator.clipboard.writeText(`${dir}/${node.path}`);
+            }}>
+              <ClipboardCopy className="h-4 w-4 me-2" />
+              Copy Full Path
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => {
+              fetch("/api/system/open-data-dir", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subpath: node.path }),
+              });
+            }}>
+              <FolderOpen className="h-4 w-4 me-2" />
+              Open in Finder
+            </ContextMenuItem>
+          </ContextMenuGroup>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleDelete} className="text-destructive">
             {node.isLinked ? (
