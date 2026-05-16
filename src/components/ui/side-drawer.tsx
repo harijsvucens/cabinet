@@ -51,6 +51,11 @@ export function SideDrawer({ drawer, onScrimClick, children }: SideDrawerProps) 
     <div
       className={cn(
         "relative shrink-0 self-stretch overflow-hidden",
+        // Same leading-edge depth shadow as the task rail (RTL-mirrored).
+        // On the wrapper, not the inner panel, so its own overflow-hidden
+        // doesn't clip it. Only while expanded — no panel, no shadow.
+        expanded &&
+          "shadow-[-3px_0_8px_-5px_rgba(0,0,0,0.14)] rtl:shadow-[3px_0_8px_-5px_rgba(0,0,0,0.14)]",
         !resizing &&
           "transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
       )}
@@ -58,7 +63,7 @@ export function SideDrawer({ drawer, onScrimClick, children }: SideDrawerProps) 
       onTransitionEnd={onWrapperTransitionEnd}
     >
       <div
-        className="absolute inset-y-0 end-0 flex flex-col bg-background border-l border-border"
+        className="absolute inset-y-0 end-0 flex flex-col bg-background"
         style={{ width: panelWidth }}
       >
         {/* Resize handle — a flush 1px hairline at the inline-start edge.
@@ -70,7 +75,7 @@ export function SideDrawer({ drawer, onScrimClick, children }: SideDrawerProps) 
           title={t("sidebar:resetWidth")}
           onPointerDown={startResize}
           onDoubleClick={resetWidth}
-          className="absolute inset-y-0 start-0 z-30 w-px cursor-col-resize bg-border transition-colors hover:bg-primary/50"
+          className="absolute inset-y-0 start-0 z-30 w-px cursor-col-resize bg-border/50 transition-colors hover:bg-primary/50"
         />
         {children}
       </div>

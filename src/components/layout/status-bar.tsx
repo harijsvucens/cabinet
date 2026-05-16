@@ -965,11 +965,11 @@ export function StatusBar() {
                 ? t("taskRail:hide")
                 : t("taskRail:show")
           }
-          className={`relative flex items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${
-            taskRailOpen ? "text-primary" : ""
-          } ${taskRailFlash ? "animate-pulse text-emerald-600 dark:text-emerald-400" : ""}`}
+          className={`relative inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/55 px-2.5 py-1 text-muted-foreground transition-all hover:-translate-y-px hover:border-foreground/15 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 ${
+            taskRailOpen ? "border-foreground/15 bg-muted text-primary" : ""
+          } ${taskRailFlash ? "animate-pulse !text-emerald-600 dark:!text-emerald-400" : ""}`}
         >
-          <PanelRight className="h-3 w-3" />
+          <PanelRight className="h-3.5 w-3.5" />
           {runningCount > 0 && (
             <span className="inline-flex min-w-3.5 items-center justify-center rounded-full bg-emerald-500/15 px-1 text-[9px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
               {runningCount}

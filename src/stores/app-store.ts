@@ -124,6 +124,13 @@ interface AppState {
   taskPanelOpen: boolean;
   taskPanelMode: TaskPanelMode;
   taskPanelComposeContext: TaskPanelComposeContext | null;
+  /** Right-edge recent-tasks rail. Closed by default; session memory only. */
+  taskRailOpen: boolean;
+  /**
+   * Conversation ids the user has opened in the task drawer this session,
+   * newest-first. Backs the "recent" group of the task rail. Session memory.
+   */
+  recentlyOpenedTaskIds: string[];
   providers: ProviderInfo[];
   defaultProviderId: string | null;
   defaultModel: string | null;
@@ -156,10 +163,22 @@ interface AppState {
   closeTaskPanel: () => void;
   toggleTaskPanelCompose: (context?: TaskPanelComposeContext) => void;
   swapToConversation: (conversation: ConversationMeta) => void;
+  toggleTaskRail: () => void;
 }
 
 function normalizeVisibilityCabinetPath(cabinetPath?: string): string {
   return cabinetPath?.trim() || ROOT_CABINET_PATH;
+}
+
+/** Max entries kept in the task rail's "recently opened" session history. */
+const RECENT_TASKS_CAP = 25;
+
+/** Prepend `id` to the recents list, dedupe, and cap. Pure. */
+function rememberOpenedTask(current: string[], id: string): string[] {
+  const next = [id, ...current.filter((existing) => existing !== id)];
+  return next.length > RECENT_TASKS_CAP
+    ? next.slice(0, RECENT_TASKS_CAP)
+    : next;
 }
 
 function loadCabinetVisibilityModes(): Record<string, CabinetVisibilityMode> {
@@ -215,6 +234,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   taskPanelOpen: false,
   taskPanelMode: "compose",
   taskPanelComposeContext: null,
+  taskRailOpen: false,
+  recentlyOpenedTaskIds: [],
   providers: [],
   defaultProviderId: null,
   defaultModel: null,
@@ -443,6 +464,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             taskPanelMode: "conversation" as const,
             taskPanelOpen: true,
             taskPanelFullscreen: false,
+            recentlyOpenedTaskIds: rememberOpenedTask(
+              get().recentlyOpenedTaskIds,
+              conversation.id
+            ),
           }
         : { taskPanelOpen: false }
     ),
@@ -484,7 +509,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       taskPanelConversation: conversation,
       taskPanelMode: "conversation",
       taskPanelOpen: true,
+      recentlyOpenedTaskIds: rememberOpenedTask(
+        get().recentlyOpenedTaskIds,
+        conversation.id
+      ),
     }),
+
+  toggleTaskRail: () => set({ taskRailOpen: !get().taskRailOpen }),
 
   openAgentTab: (taskTitle: string, prompt: string) => {
     const id = `agent-${Date.now()}`;

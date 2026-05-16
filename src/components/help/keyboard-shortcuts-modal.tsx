@@ -79,6 +79,10 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
         description: "Toggle AI panel",
       },
       { keys: ["ctrl", "`"], description: "Toggle terminal" },
+      {
+        keys: ["cmd", "alt", "L"],
+        description: "Toggle tasks rail",
+      },
     ],
   },
 ];

@@ -1403,5 +1403,18 @@
     "modeDay": "日",
     "modeWeek": "週",
     "modeMonth": "月"
+  },
+  "taskRail": {
+    "title": "最近與執行中的任務",
+    "hide": "隱藏任務列",
+    "show": "顯示任務列",
+    "empty": "尚無任務",
+    "itemRunning": "{{title}} · 執行中 · {{when}}",
+    "itemNeedsReply": "{{title}} · 等待回覆",
+    "itemFailed": "{{title}} · 失敗 · {{when}}",
+    "itemDone": "{{title}} · 已完成 · {{when}}",
+    "itemArchived": "{{title}} · 已封存",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} 個執行中 — 顯示任務列"
   }
 }

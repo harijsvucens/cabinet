@@ -124,6 +124,14 @@ export function useGlobalHotkeys(): void {
         return;
       }
 
+      // Cmd+Opt+L — toggle the recent/running tasks rail
+      // e.code used because Option modifies e.key on macOS (Option+L → "¬")
+      if (e.altKey && !e.shiftKey && e.code === "KeyL") {
+        e.preventDefault();
+        useAppStore.getState().toggleTaskRail();
+        return;
+      }
+
       // Cmd+Shift+. — toggle hidden files
       if (e.shiftKey && e.key === ".") {
         e.preventDefault();

@@ -30,7 +30,7 @@
     },
     "workspace": {
       "promise": "Promise",
-      "orgChart": "Your Team Org Chart",
+      "orgChart": "Org chart",
       "jobDetails": "Job Details",
       "heartbeat": "Heartbeat",
       "workspace": "Workspace",
@@ -58,7 +58,6 @@
       "newRoutine": "New Routine",
       "configureHeartbeat": "Configure heartbeat",
       "openOrgChart": "Open org chart",
-      "orgChart": "Org chart",
       "pickAnAgent": "Pick an agent",
       "dismiss": "Dismiss",
       "lockedHeartbeatTip": "This agent is stopped. Start it on the Agents tab to enable the heartbeat.",
@@ -1404,5 +1403,18 @@
     "introTitle": "Meet your <accent>Cabinet</accent>.",
     "introSubtitle": "Your AI team. Your knowledge base. One place.",
     "cabinetTitle": "Cabinet"
+  },
+  "taskRail": {
+    "title": "Recent and running tasks",
+    "hide": "Hide tasks rail",
+    "show": "Show tasks rail",
+    "empty": "No tasks",
+    "itemRunning": "{{title}} · running · {{when}}",
+    "itemNeedsReply": "{{title}} · needs reply",
+    "itemFailed": "{{title}} · failed · {{when}}",
+    "itemDone": "{{title}} · done · {{when}}",
+    "itemArchived": "{{title}} · archived",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} running — show tasks rail"
   }
 }

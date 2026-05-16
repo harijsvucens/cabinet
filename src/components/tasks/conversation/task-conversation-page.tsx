@@ -353,10 +353,40 @@ export function TaskConversationPage({
   const [retryNonce, setRetryNonce] = useState(0);
   const [editingSummary, setEditingSummary] = useState(false);
   const [summaryDraft, setSummaryDraft] = useState("");
+  // The summary block collapses to a single ellipsised row once the user
+  // scrolls into any tab's content, and auto-expands back at the top.
+  const [summaryCollapsed, setSummaryCollapsed] = useState(false);
   const [wrapUpDismissed, setWrapUpDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Callback ref on the panel root: scroll doesn't bubble, so we listen in
+  // the capture phase to catch scrolling inside any tab's content. A
+  // callback ref (not useEffect) so the listener attaches exactly when the
+  // root mounts — the component early-returns null until the task loads,
+  // so an effect would bind before the node exists and never rebind.
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
+  const setPanelRoot = useCallback((node: HTMLDivElement | null) => {
+    scrollCleanupRef.current?.();
+    scrollCleanupRef.current = null;
+    if (!node) return;
+    let raf = 0;
+    const onScroll = (e: Event) => {
+      const tgt = e.target as HTMLElement | null;
+      if (!tgt || typeof tgt.scrollTop !== "number") return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setSummaryCollapsed(tgt.scrollTop > 24);
+      });
+    };
+    node.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    scrollCleanupRef.current = () => {
+      node.removeEventListener("scroll", onScroll, { capture: true });
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Terminal-mode viewer tabs: Terminal (xterm stream) vs Details
   // (structured prompt/result/artifacts cards via ConversationResultView).
@@ -1069,7 +1099,7 @@ export function TaskConversationPage({
                 />
               )}
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
               {!task || (detailLoading && !detail) ? (
                 <div className="flex h-full items-center justify-center text-muted-foreground">
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -1322,7 +1352,10 @@ export function TaskConversationPage({
   if (!task) return null;
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
+    <div
+      ref={setPanelRoot}
+      className="flex h-full flex-col bg-background text-foreground"
+    >
       {/* Top bar (hidden in compact variant) */}
       {!isCompact ? (
       <header className="flex items-center gap-3 border-b border-border/70 px-6 py-3">
@@ -1443,62 +1476,98 @@ export function TaskConversationPage({
       </header>
       ) : null}
 
-      {/* Summary */}
-      <div className="border-b border-border/70 bg-muted/20 px-6 py-3">
-        <div className="flex items-start gap-2">
-          <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Summary
-          </span>
-          {editingSummary ? (
-            <div className="flex-1 space-y-2">
-              <textarea
-                className="w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-[13px] outline-none"
-                rows={2}
-                value={summaryDraft}
-                onChange={(e) => setSummaryDraft(e.target.value)}
-                autoFocus
-              />
-              <div className="flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-[11px]"
-                  onClick={() => {
-                    setSummaryDraft(task.meta.summary ?? "");
-                    setEditingSummary(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-6 px-2 text-[11px]"
-                  onClick={handleSummarySave}
-                  disabled={busy}
-                >
-                  Save
-                </Button>
-              </div>
+      {/* Summary — eases down to a single ellipsised row on scroll. */}
+      {(() => {
+        const collapsed = summaryCollapsed && !editingSummary;
+        const ease =
+          "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
+        return (
+          <div
+            className={cn(
+              "border-b border-border/70 bg-muted/20 px-6 transition-[padding]",
+              ease,
+              collapsed ? "py-1.5" : "py-3"
+            )}
+          >
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Summary
+              </span>
+              {editingSummary ? (
+                <div className="flex-1 space-y-2">
+                  <textarea
+                    className="w-full resize-none rounded-md border border-border bg-background px-2 py-1 text-[13px] outline-none"
+                    rows={2}
+                    value={summaryDraft}
+                    onChange={(e) => setSummaryDraft(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        setSummaryDraft(task.meta.summary ?? "");
+                        setEditingSummary(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={handleSummarySave}
+                      disabled={busy}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p
+                    className={cn(
+                      "min-w-0 flex-1 overflow-hidden text-[13px] text-foreground/80 transition-[max-height]",
+                      ease,
+                      collapsed
+                        ? "max-h-[1.25rem] truncate"
+                        : "max-h-[24rem] whitespace-normal leading-relaxed"
+                    )}
+                  >
+                    {task.meta.summary || (
+                      <span className="text-muted-foreground/70">
+                        {t("tasks:conversation.noSummary")}
+                      </span>
+                    )}
+                  </p>
+                  {/* Pencil eases its width/opacity away when collapsed
+                      instead of vanishing. */}
+                  <div
+                    className={cn(
+                      "shrink-0 overflow-hidden transition-[max-width,opacity]",
+                      ease,
+                      collapsed
+                        ? "pointer-events-none max-w-0 opacity-0"
+                        : "max-w-8 opacity-100"
+                    )}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 shrink-0 p-0 text-muted-foreground"
+                      onClick={startEditingSummary}
+                      tabIndex={collapsed ? -1 : 0}
+                    >
+                      <Pencil className="size-3" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
-          ) : (
-            <>
-              <p className="flex-1 text-[13px] leading-relaxed text-foreground/80">
-                {task.meta.summary || (
-                  <span className="text-muted-foreground/70">{t("tasks:conversation.noSummary")}</span>
-                )}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 shrink-0 p-0 text-muted-foreground"
-                onClick={startEditingSummary}
-              >
-                <Pencil className="size-3" />
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+          </div>
+        );
+      })()}
 
       {/* Tabs + content */}
       <Tabs defaultValue="chat" className="flex flex-1 min-h-0 flex-col gap-0">
@@ -1582,7 +1651,7 @@ export function TaskConversationPage({
             </div>
           ) : (
           <>
-          <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto">
+          <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             {tokenPct >= 80 && task.meta.status !== "done" && !readOnly ? (
               <div className="mx-auto mx-6 my-4 max-w-3xl">
                 <div
@@ -1684,7 +1753,7 @@ export function TaskConversationPage({
           value="artifacts"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
               <ArtifactsList turns={task.turns} returnContext={returnContext} />
             </div>
@@ -1695,7 +1764,7 @@ export function TaskConversationPage({
           value="diff"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
               {isDemo ? (
                 <p className="px-6 py-12 text-center text-sm text-muted-foreground">
@@ -1712,7 +1781,7 @@ export function TaskConversationPage({
           value="logs"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
               {isDemo ? (
                 <p className="px-6 py-12 text-center text-sm text-muted-foreground">

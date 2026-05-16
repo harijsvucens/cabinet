@@ -1,0 +1,208 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { dedupFetch } from "@/lib/api/dedup-fetch";
+import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
+import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
+import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
+import { useAppStore } from "@/stores/app-store";
+import type { ConversationMeta } from "@/types/conversations";
+import type { TaskMeta } from "@/types/tasks";
+import type { CabinetAgentSummary } from "@/types/cabinets";
+
+export interface RailItem {
+  /** Raw meta — passed to setTaskPanelConversation to open the drawer. */
+  meta: ConversationMeta;
+  /** Derived UI shape (status, title, agent slug). */
+  task: TaskMeta;
+}
+
+export interface TaskRailData {
+  /** Live running / awaiting-input tasks, most-recent activity first. */
+  running: RailItem[];
+  /** Tasks the user recently opened that aren't currently running. */
+  recent: RailItem[];
+  /** Number of running tasks (badge on the toggle button). */
+  runningCount: number;
+  /** True briefly after a running task finishes while the rail is closed. */
+  flash: boolean;
+  /** Tick so tooltips re-render relative timestamps. */
+  now: number;
+  /** Agent roster for real avatars, keyed by slug. */
+  agentsBySlug: Map<string, CabinetAgentSummary>;
+}
+
+// Pull a generous pool so recently-opened ids can be resolved without paging.
+const POOL_LIMIT = 60;
+// How long the toggle button pulses after a task finishes off-screen.
+const FLASH_MS = 4000;
+
+function isRunning(task: TaskMeta): boolean {
+  return task.status === "running" || task.status === "awaiting-input";
+}
+
+/**
+ * Global data source for the right-edge task rail. Mirrors the sidebar
+ * RecentTasks fetch/SSE pattern but stays mounted app-wide so running tasks
+ * stay reachable from any section (Data / Agents / Tasks).
+ */
+export function useTaskRailData(): TaskRailData {
+  const recentlyOpenedTaskIds = useAppStore((s) => s.recentlyOpenedTaskIds);
+  const railOpen = useAppStore((s) => s.taskRailOpen);
+
+  const [items, setItems] = useState<RailItem[]>([]);
+  const [agentsBySlug, setAgentsBySlug] = useState<
+    Map<string, CabinetAgentSummary>
+  >(() => new Map());
+  const [now, setNow] = useState(() => Date.now());
+  const [flash, setFlash] = useState(false);
+
+  // Previous running-id set + a live mirror of railOpen, read inside the
+  // load closure without retriggering the fetch effect.
+  const prevRunningRef = useRef<Set<string>>(new Set());
+  const railOpenRef = useRef(railOpen);
+  const flashTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    railOpenRef.current = railOpen;
+  }, [railOpen]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAgents = async () => {
+      try {
+        // Deduped + short-TTL cached, so calling it on each reload tick is
+        // cheap and shared with the rest of the app.
+        const overview = await fetchCabinetOverviewClient(
+          ROOT_CABINET_PATH,
+          "own"
+        );
+        if (cancelled || !overview) return;
+        const map = new Map<string, CabinetAgentSummary>();
+        for (const agent of overview.agents ?? []) map.set(agent.slug, agent);
+        setAgentsBySlug(map);
+      } catch {
+        // Non-fatal — avatars fall back to the slug-derived glyph.
+      }
+    };
+
+    const load = async () => {
+      try {
+        const res = await dedupFetch(
+          `/api/agents/conversations?limit=${POOL_LIMIT}`,
+          { cache: "no-store" },
+          { ttlMs: 1500 }
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        const convos: ConversationMeta[] = Array.isArray(data.conversations)
+          ? data.conversations
+          : [];
+        const next: RailItem[] = convos.map((meta) => ({
+          meta,
+          task: conversationMetaToTaskMeta(meta),
+        }));
+
+        // Detect tasks that finished while the rail was collapsed so the
+        // toggle button can pulse the user back.
+        const nextRunning = new Set(
+          next.filter((i) => isRunning(i.task)).map((i) => i.task.id)
+        );
+        const finishedOffscreen =
+          !railOpenRef.current &&
+          [...prevRunningRef.current].some((id) => !nextRunning.has(id));
+        prevRunningRef.current = nextRunning;
+        if (finishedOffscreen) {
+          setFlash(true);
+          if (flashTimerRef.current !== null) {
+            window.clearTimeout(flashTimerRef.current);
+          }
+          flashTimerRef.current = window.setTimeout(
+            () => setFlash(false),
+            FLASH_MS
+          );
+        }
+
+        setItems(next);
+      } catch {
+        if (!cancelled) setItems([]);
+      }
+    };
+
+    void load();
+    void loadAgents();
+
+    // Live refresh on the shared conversation SSE, debounced so a burst of
+    // turn events during a run collapses into one reload.
+    const es = new EventSource("/api/agents/conversations/events");
+    let reloadTimer: number | null = null;
+    const scheduleReload = () => {
+      if (reloadTimer !== null) return;
+      reloadTimer = window.setTimeout(() => {
+        reloadTimer = null;
+        void load();
+      }, 200);
+    };
+    es.onmessage = (msg) => {
+      try {
+        const event = JSON.parse(msg.data) as { type: string };
+        if (event.type === "ping") return;
+        scheduleReload();
+      } catch {
+        // ignore malformed frames
+      }
+    };
+
+    // Refresh relative timestamps in tooltips once a minute.
+    const tick = window.setInterval(() => setNow(Date.now()), 60_000);
+
+    return () => {
+      cancelled = true;
+      es.close();
+      if (reloadTimer !== null) window.clearTimeout(reloadTimer);
+      if (flashTimerRef.current !== null) {
+        window.clearTimeout(flashTimerRef.current);
+      }
+      window.clearInterval(tick);
+    };
+  }, []);
+
+  // Opening the rail means the user has "seen" the finished task, so the
+  // pulse is suppressed immediately (derived, not stored — the underlying
+  // timer still resets the raw flag).
+  const effectiveFlash = flash && !railOpen;
+
+  return useMemo(() => {
+    const running = items
+      .filter((i) => isRunning(i.task))
+      .sort((a, b) => activityTs(b.task) - activityTs(a.task));
+
+    const runningIds = new Set(running.map((i) => i.task.id));
+    const byId = new Map(items.map((i) => [i.task.id, i] as const));
+
+    // "Recent" = tasks the user opened this session, in click order,
+    // excluding ones currently running (already shown above) and any that
+    // have aged out of the fetched pool.
+    const recent: RailItem[] = [];
+    for (const id of recentlyOpenedTaskIds) {
+      if (runningIds.has(id)) continue;
+      const hit = byId.get(id);
+      if (hit) recent.push(hit);
+    }
+
+    return {
+      running,
+      recent,
+      runningCount: running.length,
+      flash: effectiveFlash,
+      now,
+      agentsBySlug,
+    };
+  }, [items, recentlyOpenedTaskIds, effectiveFlash, now, agentsBySlug]);
+}
+
+function activityTs(task: TaskMeta): number {
+  return new Date(
+    task.lastActivityAt ?? task.completedAt ?? task.startedAt ?? 0
+  ).getTime();
+}

@@ -1403,5 +1403,18 @@
     "modeDay": "日",
     "modeWeek": "周",
     "modeMonth": "月"
+  },
+  "taskRail": {
+    "title": "最近和运行中的任务",
+    "hide": "隐藏任务栏",
+    "show": "显示任务栏",
+    "empty": "暂无任务",
+    "itemRunning": "{{title}} · 运行中 · {{when}}",
+    "itemNeedsReply": "{{title}} · 等待回复",
+    "itemFailed": "{{title}} · 失败 · {{when}}",
+    "itemDone": "{{title}} · 已完成 · {{when}}",
+    "itemArchived": "{{title}} · 已归档",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} 个运行中 — 显示任务栏"
   }
 }

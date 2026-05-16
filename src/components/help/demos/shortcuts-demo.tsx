@@ -77,6 +77,7 @@ function SlideGlobal() {
     { keys: [`${MOD}S`], label: "Force-save page" },
     { keys: [`${MOD}⌥G`], label: "Toggle Agents view" },
     { keys: [`${MOD}⌥A`], label: "Toggle AI panel" },
+    { keys: [`${MOD}⌥L`], label: "Toggle tasks rail" },
     { keys: ["Ctrl`"], label: "Toggle terminal" },
     { keys: [`${MOD}1`], label: "Sidebar → Data" },
     { keys: [`${MOD}2`], label: "Sidebar → Agents" },

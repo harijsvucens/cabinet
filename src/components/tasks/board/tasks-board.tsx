@@ -253,7 +253,7 @@ export function TasksBoard({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-background/95 px-4 py-2.5 sm:px-6">
+      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 md:h-12 md:flex-nowrap md:py-0">
         {standalone && (
           <Link
             href="/"
@@ -264,7 +264,7 @@ export function TasksBoard({
         )}
         <h1 className="text-[14px] font-semibold tracking-tight">{t("tasksBoard:title")}</h1>
         {refreshing && <Loader2 className="size-3.5 animate-spin text-muted-foreground" />}
-        <div className="ms-4 flex items-center gap-2">
+        <div className="flex items-center gap-2 md:ms-2">
           <ViewToggle value={view} onChange={setView} />
           <DensityToggle value={density} onChange={setDensity} />
         </div>
@@ -634,7 +634,7 @@ function NewWorkButton({
       <div className="w-px bg-primary-foreground/20" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="inline-flex items-center bg-primary px-1.5 text-primary-foreground transition-colors hover:bg-primary/90"
+          className="inline-flex items-center bg-primary pl-1.5 pr-1 text-primary-foreground transition-colors hover:bg-primary/90"
           title={t("tasksBoard:moreNewTypes")}
           aria-label={t("tasksBoard:moreNewTypes")}
         >

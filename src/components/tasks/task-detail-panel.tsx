@@ -1,6 +1,8 @@
 "use client";
 
-import { ArrowUpRight, BrainCircuit, Maximize2, Minimize2, X } from "lucide-react";
+import { ArrowUpRight, Maximize, Minimize, X } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { TaskConversationPage } from "@/components/tasks/conversation/task-conversation-page";
 import { TaskComposeBody } from "@/components/tasks/task-compose-body";
@@ -113,6 +115,34 @@ export function TaskDetailPanel() {
     storageKey: "cabinet-task-panel-width",
   });
 
+  // Mirror the summary's collapse-on-scroll: once the body scrolls past the
+  // top, the header drops its meta row and ellipsises the title. Scroll
+  // doesn't bubble, so a capture-phase listener on the panel root catches
+  // scrolling inside the conversation. Callback ref so it binds when the
+  // node actually mounts.
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const scrollCleanupRef = useRef<(() => void) | null>(null);
+  const setPanelScrollRoot = useCallback((node: HTMLDivElement | null) => {
+    scrollCleanupRef.current?.();
+    scrollCleanupRef.current = null;
+    if (!node) return;
+    let raf = 0;
+    const onScroll = (e: Event) => {
+      const tgt = e.target as HTMLElement | null;
+      if (!tgt || typeof tgt.scrollTop !== "number") return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setHeaderCollapsed(tgt.scrollTop > 24);
+      });
+    };
+    node.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    scrollCleanupRef.current = () => {
+      node.removeEventListener("scroll", onScroll, { capture: true });
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   if (!drawer.shouldRender) return null;
 
   const isCompose = taskPanelMode === "compose" || !conversation;
@@ -130,52 +160,23 @@ export function TaskDetailPanel() {
   const runtimeLabel = conversation ? buildRuntimeLabel(conversation) : null;
   const errorKind = conversation?.errorKind;
 
-  const header = (
-    <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3 shrink-0">
-      <div className="min-w-0 flex-1">
-        {isCompose || !conversation ? (
-          <p className="truncate text-[13px] font-medium text-foreground">
-            New task
-          </p>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <StatusDot status={conversation.status} />
-              {providerIcon ? (
-                <div
-                  className="flex size-4 shrink-0 items-center justify-center rounded border border-border/60 bg-muted/30"
-                  title={providerIcon.name}
-                >
-                  <ProviderGlyph
-                    icon={providerIcon.icon}
-                    asset={providerIcon.iconAsset}
-                    className="h-2.5 w-2.5"
-                  />
-                </div>
-              ) : null}
-              <p className="truncate text-[13px] font-medium text-foreground">
-                {conversation.title}
-              </p>
-            </div>
-            <p className="mt-0.5 truncate pl-4 text-[11px] text-muted-foreground">
-              {startCase(conversation.agentSlug)}
-              {" · "}
-              {formatRelative(conversation.startedAt)}
-              {errorKind ? (
-                <span className="ml-1.5 rounded-sm bg-destructive/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
-                  {errorKind.replace(/_/g, " ")}
-                </span>
-              ) : null}
-            </p>
-            {runtimeLabel ? (
-              <div className="mt-1 flex items-center gap-1.5 pl-4 text-[11px] text-muted-foreground">
-                <BrainCircuit className="size-3.5 shrink-0" />
-                <p className="truncate">{runtimeLabel}</p>
-              </div>
-            ) : null}
-          </>
-        )}
-      </div>
+  const collapsed = headerCollapsed;
+
+  // Order: expand (full viewer) · fullscreen toggle · close. Shared by the
+  // compose and conversation header variants.
+  const actions = (
+    <div className="ms-auto flex shrink-0 items-center gap-1">
+      {!isCompose && conversation ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+          onClick={openFullPage}
+          title={t("tinyExtras:openFullTaskViewer")}
+        >
+          <ArrowUpRight className="size-3.5" />
+        </Button>
+      ) : null}
       {!drawer.isMobile ? (
         <Button
           variant="ghost"
@@ -184,18 +185,11 @@ export function TaskDetailPanel() {
           onClick={toggleFullscreen}
           title={fullscreen ? "Shrink" : "Enlarge"}
         >
-          {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-        </Button>
-      ) : null}
-      {!isCompose && conversation ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1 shrink-0 px-2 text-[11px] text-muted-foreground"
-          onClick={openFullPage}
-          title={t("tinyExtras:openFullTaskViewer")}
-        >
-          <ArrowUpRight className="size-3.5" />
+          {fullscreen ? (
+            <Minimize className="size-3.5" />
+          ) : (
+            <Maximize className="size-3.5" />
+          )}
         </Button>
       ) : null}
       <Button
@@ -206,6 +200,85 @@ export function TaskDetailPanel() {
       >
         <X className="size-4" />
       </Button>
+    </div>
+  );
+
+  const ease = "duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
+
+  const header = (
+    <div
+      className={cn(
+        "flex flex-col gap-1 border-b border-border/70 px-4 shrink-0 transition-[padding]",
+        ease,
+        collapsed ? "py-2" : "py-3"
+      )}
+    >
+      {isCompose || !conversation ? (
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+            New task
+          </p>
+          {actions}
+        </div>
+      ) : (
+        <>
+          {/* Row 1: status circle · model icon · model string · actions */}
+          <div className="flex items-center gap-2">
+            <StatusDot status={conversation.status} />
+            {providerIcon ? (
+              <div
+                className="flex size-4 shrink-0 items-center justify-center rounded border border-border/60 bg-muted/30"
+                title={providerIcon.name}
+              >
+                <ProviderGlyph
+                  icon={providerIcon.icon}
+                  asset={providerIcon.iconAsset}
+                  className="h-2.5 w-2.5"
+                />
+              </div>
+            ) : null}
+            <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+              {runtimeLabel}
+            </p>
+            {actions}
+          </div>
+
+          {/* Row 2: agent · relative time — smoothly collapses its height
+              away (grid 0fr↔1fr + fade) instead of popping. */}
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity]",
+              ease,
+              collapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+            )}
+          >
+            <p className="min-h-0 overflow-hidden truncate text-[11px] text-muted-foreground">
+              {startCase(conversation.agentSlug)}
+              {" · "}
+              {formatRelative(conversation.startedAt)}
+              {errorKind ? (
+                <span className="ml-1.5 rounded-sm bg-destructive/10 px-1 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
+                  {errorKind.replace(/_/g, " ")}
+                </span>
+              ) : null}
+            </p>
+          </div>
+
+          {/* Row 3: title — wraps when expanded, eases down to a one-line
+              ellipsis when collapsed (max-height tween). */}
+          <p
+            className={cn(
+              "overflow-hidden text-[14px] font-semibold leading-snug text-foreground transition-[max-height]",
+              ease,
+              collapsed
+                ? "max-h-[1.5rem] truncate"
+                : "max-h-[12rem] whitespace-normal"
+            )}
+          >
+            {conversation.title}
+          </p>
+        </>
+      )}
     </div>
   );
 
@@ -227,10 +300,13 @@ export function TaskDetailPanel() {
     );
 
   const content = (
-    <>
+    <div
+      ref={setPanelScrollRoot}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       {header}
       {body}
-    </>
+    </div>
   );
 
   // Fullscreen is a separate overlay layout — bypass the drawer width-tween.

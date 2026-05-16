@@ -32,6 +32,8 @@ import { HomeScreen } from "@/components/home/home-screen";
 import type { ConversationMeta } from "@/types/conversations";
 import { TerminalTabs } from "@/components/terminal/terminal-tabs";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
+import { TaskRail } from "@/components/tasks/rail/task-rail";
+import { TaskRailProvider } from "@/components/tasks/rail/task-rail-context";
 import { SearchPalette } from "@/components/search/search-palette";
 import { KeyboardShortcutsModal } from "@/components/help/keyboard-shortcuts-modal";
 import { WhatsNewCard } from "@/components/help/whats-new-card";
@@ -153,6 +155,7 @@ export function AppShell() {
   const setSection = useAppStore((s) => s.setSection);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const terminalPosition = useAppStore((s) => s.terminalPosition);
+  const taskRailOpen = useAppStore((s) => s.taskRailOpen);
   const setTerminalCwd = useAppStore((s) => s.setTerminalCwd);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
@@ -824,7 +827,15 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <TaskRailProvider>
+    {/* When the rail is open we reserve a 30px gutter on the inline-end
+        edge: the whole app shrinks into the remaining width (the "iframe")
+        and the fixed, full-height rail lives in that gutter. */}
+    <div
+      className={`flex h-screen bg-background text-foreground transition-[padding] duration-200 ease-out${
+        taskRailOpen && !isMobile ? " pe-[30px]" : ""
+      }`}
+    >
       {/* Audit #031: SR-only live region announcing the active page title
           on every route change. role="status" + aria-live="polite" so it
           doesn't interrupt other speech; aria-atomic so the entire string
@@ -852,6 +863,7 @@ export function AppShell() {
       </div>
       <MobileBottomNav />
       {terminalOpen && terminalPosition === "right" && <TerminalTabs />}
+      {!isMobile && <TaskRail />}
       <TaskDetailPanel />
       <SearchPalette />
       <KeyboardShortcutsModal />
@@ -932,6 +944,7 @@ export function AppShell() {
         }}
       />
     </div>
+    </TaskRailProvider>
   );
 }
 

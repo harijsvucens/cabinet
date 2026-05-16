@@ -1403,5 +1403,18 @@
     "modeDay": "יום",
     "modeWeek": "שבוע",
     "modeMonth": "חודש"
+  },
+  "taskRail": {
+    "title": "משימות אחרונות ופעילות",
+    "hide": "הסתרת סרגל המשימות",
+    "show": "הצגת סרגל המשימות",
+    "empty": "אין משימות",
+    "itemRunning": "{{title}} · רץ · {{when}}",
+    "itemNeedsReply": "{{title}} · ממתין לתגובה",
+    "itemFailed": "{{title}} · נכשל · {{when}}",
+    "itemDone": "{{title}} · הושלם · {{when}}",
+    "itemArchived": "{{title}} · בארכיון",
+    "itemDefault": "{{title}} · {{when}}",
+    "toggleRunning": "{{count}} פעילות — הצגת סרגל המשימות"
   }
 }
