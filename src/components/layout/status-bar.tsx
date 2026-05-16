@@ -1028,9 +1028,10 @@ export function StatusBar() {
         >
           <PanelRight className="h-3.5 w-3.5" />
           {runningCount > 0 && (
-            <span className="inline-flex min-w-3.5 items-center justify-center rounded-full bg-emerald-500/15 px-1 text-[9px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
-              {runningCount}
-            </span>
+            <span
+              className="cabinet-task-heartbeat inline-block size-2 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]"
+              aria-hidden="true"
+            />
           )}
         </button>
         {showCommunityPopup && (

@@ -262,6 +262,22 @@ html[lang^="zh-Hant"] h1, html[lang^="zh-Hant"] h2, html[lang^="zh-Hant"] h3, ht
   animation: cabinet-master-pulse 700ms ease-out;
 }
 
+/* Status-bar "tasks running" dot — a double-thump heartbeat with a rest
+   beat, so it reads as a live pulse rather than a plain fade. */
+@keyframes cabinet-task-heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%      { transform: scale(1.4); }
+  28%      { transform: scale(1); }
+  42%      { transform: scale(1.28); }
+  56%      { transform: scale(1); }
+}
+.cabinet-task-heartbeat {
+  animation: cabinet-task-heartbeat 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cabinet-task-heartbeat { animation: none; }
+}
+
 /* Body serif — Source Serif 4, beats theme overrides */
 html[data-custom-theme] .font-body-serif,
 .font-body-serif {
