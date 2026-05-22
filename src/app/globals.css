@@ -902,6 +902,12 @@ html[dir="rtl"].electron-desktop main > :first-child {
   100% { transform: translate(-50%, -50%) translate(var(--sb-x, 20px), var(--sb-y, 0px)) scale(0); opacity: 0; }
 }
 
+/* ── Onboarding provider guide slide-in (RTL-aware via inline --bp-slide-from) ── */
+@keyframes onboarding-guide-slide-in {
+  from { transform: translateX(var(--guide-slide-from, 24px)); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
 /* ── Onboarding tour animations ── */
 @keyframes cabinet-tour-fade-up {
   0%   { opacity: 0; transform: translateY(6px); }

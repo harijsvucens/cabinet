@@ -13,7 +13,6 @@ import {
   Copy,
   ExternalLink,
   Globe,
-  House,
   Loader2,
   Rocket,
   ChevronDown,
@@ -22,31 +21,18 @@ import {
   Sparkles,
   Star,
   Terminal,
-  Users,
-  XCircle,
   Zap,
 } from "lucide-react";
 import { HomeBlueprintBackground } from "@/components/onboarding/home-blueprint-background";
 import { isAgentProviderSelectable } from "@/lib/agents/provider-filters";
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import type { ProviderInfo } from "@/types/agents";
-import type { RegistryTemplate } from "@/lib/registry/registry-manifest";
-import { TiltCard } from "@/components/ui/tilt-card";
 import { showError } from "@/lib/ui/toast";
-import { RegistryBrowser } from "@/components/registry/registry-browser";
 import {
   ROOMS,
   ROOM_TYPES,
-  STARTER_TEAMS,
   type RoomType,
-  type StarterTeam,
 } from "@/lib/onboarding/rooms";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { getSuggestedProviderEffort } from "@/lib/agents/runtime-options";
 import { sendTelemetry } from "@/lib/telemetry/browser";
 import {
@@ -317,10 +303,6 @@ function getAlwaysCheckedForRoom(roomType: RoomType): Set<string> {
   return new Set(ROOMS[roomType].mandatoryAgents);
 }
 
-// Starter teams are now defined in src/lib/onboarding/rooms.ts (STARTER_TEAMS)
-// with a `rooms` field so the carousel can filter per room type.
-type PreMadeTeam = StarterTeam;
-
 function TerminalCommand({ command }: { command: string }) {
   const { t } = useLocale();
   const [copied, setCopied] = useState(false);
@@ -349,113 +331,6 @@ function TerminalCommand({ command }: { command: string }) {
           <Copy className="size-3.5" style={{ color: "#808080" }} />
         )}
       </button>
-    </div>
-  );
-}
-
-function TeamCarousel({
-  templates,
-  roomType,
-  onSelect,
-}: {
-  templates: RegistryTemplate[];
-  roomType: RoomType;
-  onSelect: (t: RegistryTemplate) => void;
-}) {
-  const { t, dir } = useLocale();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isPausedRef = useRef(false);
-  const positionRef = useRef(0);
-
-  // Use real templates if loaded, otherwise fall back to room-filtered starter teams.
-  const fallbackTeams = STARTER_TEAMS.filter((t) => t.rooms.includes(roomType));
-  const items: (RegistryTemplate | PreMadeTeam)[] =
-    templates.length > 0 ? templates : fallbackTeams;
-  const isReal = templates.length > 0;
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    let animationId: number;
-    const sign = dir === "rtl" ? 1 : -1;
-
-    const animate = () => {
-      if (!isPausedRef.current) {
-        positionRef.current += 1.2;
-        const halfWidth = el.scrollWidth / 2;
-        if (positionRef.current >= halfWidth) positionRef.current = 0;
-        el.style.transform = `translateX(${sign * positionRef.current}px)`;
-      }
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [dir]);
-
-  const doubled = [...items, ...items];
-
-  return (
-    <div
-      className="tilt-carousel relative w-full py-4"
-      onMouseEnter={() => { isPausedRef.current = true; }}
-      onMouseLeave={() => { isPausedRef.current = false; }}
-    >
-      <div ref={scrollRef} className="flex gap-2 will-change-transform">
-        {doubled.map((item, i) => {
-          const agentCount = "agentCount" in item ? item.agentCount : ("agents" in item ? (item as PreMadeTeam).agents : 0);
-          const coverUrl = "coverUrl" in item ? item.coverUrl : null;
-          return (
-            <TiltCard
-              key={`${item.name}-${i}`}
-              className="flex-shrink-0 w-48"
-            >
-            <button
-              className="fancy-card w-48 flex flex-col text-left"
-              style={{
-                border: `1px solid ${WEB.border}`,
-                background: WEB.bgCard,
-                cursor: isReal ? "pointer" : "default",
-              }}
-              onClick={() => {
-                if (isReal) onSelect(item as RegistryTemplate);
-              }}
-            >
-              <div
-                className="relative h-20 w-full"
-                style={{
-                  background: coverUrl ? undefined : WEB.accentBg,
-                  backgroundImage: coverUrl ? `url(${coverUrl})` : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-                aria-hidden
-              >
-                {!coverUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center text-xl opacity-40">
-                    📦
-                  </div>
-                )}
-              </div>
-              <div className="p-2.5 flex flex-col gap-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-[11px] font-medium leading-tight line-clamp-1 flex-1 min-w-0" style={{ color: WEB.text }}>
-                    {item.name}
-                  </p>
-                  <span className="text-[9px] shrink-0" style={{ color: WEB.textTertiary }}>
-                    {t("onboarding:team.agentCount", { count: agentCount })}
-                  </span>
-                </div>
-                <p className="text-[9px] leading-snug line-clamp-2" style={{ color: WEB.textSecondary }}>
-                  {item.description}
-                </p>
-              </div>
-            </button>
-            </TiltCard>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -620,7 +495,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
                 <p style={{ color: WEB.textSecondary }}>
                   A cupboard with shelves for storing things.
                 </p>
-                <p className="text-[13px] italic mt-1.5" style={{ color: WEB.textTertiary }}>
+                <p className="font-mono text-xs italic mt-1.5" style={{ color: WEB.textTertiary }}>
                   &ldquo;a filing cabinet&rdquo;
                 </p>
               </div>
@@ -637,7 +512,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
                   </span>
                   Senior advisors consulting on government policy.
                 </p>
-                <p className="text-[13px] italic mt-1.5" style={{ color: WEB.textTertiary }}>
+                <p className="font-mono text-xs italic mt-1.5" style={{ color: WEB.textTertiary }}>
                   &ldquo;a cabinet meeting&rdquo;
                 </p>
               </div>
@@ -654,7 +529,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
                   </span>
                   A knowledge base where AI agents work for you 24/7. No salary needed.
                 </p>
-                <p className="text-[13px] italic mt-1.5" style={{ color: WEB.textTertiary }}>
+                <p className="font-mono text-xs italic mt-1.5" style={{ color: WEB.textTertiary }}>
                   &ldquo;I asked my cabinet to research the market and draft the blog post&rdquo;
                 </p>
               </div>
@@ -696,158 +571,6 @@ function IntroStep({ onNext }: { onNext: () => void }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ─── Cabinet Created — animated tree after import ─── */
-
-function CabinetCreatedScreen({
-  cabinetName,
-  template,
-  homeName,
-  roomType,
-  onContinue,
-}: {
-  cabinetName: string;
-  template: RegistryTemplate;
-  homeName: string;
-  roomType: RoomType;
-  onContinue: () => void;
-}) {
-  const { t, dir } = useLocale();
-  const slideOffset = dir === "rtl" ? "translateX(8px)" : "translateX(-8px)";
-  const roomConfig = ROOMS[roomType];
-  const RoomIcon = roomConfig.icon;
-  const [visibleLines, setVisibleLines] = useState(0);
-  const [showButton, setShowButton] = useState(false);
-
-  const treeLines = useMemo(() => {
-    const lines: { text: string; indent: number; icon?: string }[] = [];
-    lines.push({ text: cabinetName, indent: 0, icon: "📦" });
-    lines.push({ text: ".cabinet", indent: 1 });
-    lines.push({ text: ".agents/", indent: 1 });
-    if (template.agentCount > 0) {
-      const count = template.agentCount;
-      lines.push({ text: t("onboarding:cabinetCreated.agentsReady", { count }), indent: 2, icon: "🤖" });
-    }
-    lines.push({ text: ".jobs/", indent: 1 });
-    if (template.jobCount > 0) {
-      const count = template.jobCount;
-      lines.push({ text: t("onboarding:cabinetCreated.scheduledJobs", { count }), indent: 2, icon: "⏱" });
-    }
-    if (template.childCount > 0) {
-      lines.push({ text: t("onboarding:cabinetCreated.subCabinets", { count: template.childCount }), indent: 2, icon: "📂" });
-    }
-    lines.push({ text: ".cabinet-state/", indent: 1 });
-    lines.push({ text: "index.md", indent: 1 });
-    return lines;
-  }, [cabinetName, template, t]);
-
-  useEffect(() => {
-    if (visibleLines >= treeLines.length) {
-      const t = setTimeout(() => setShowButton(true), 600);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(
-      () => setVisibleLines((c) => c + 1),
-      visibleLines === 0 ? 500 : 250 + Math.random() * 150
-    );
-    return () => clearTimeout(t);
-  }, [visibleLines, treeLines.length]);
-
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center gap-8 animate-in fade-in duration-500">
-      <div className="text-center space-y-2">
-        <CheckCircle2 className="size-10 mx-auto" style={{ color: WEB.accent }} />
-        <h1 className="font-logo text-2xl tracking-tight italic" style={{ color: WEB.text }}>
-          {t("onboarding:cabinetCreated.heading")}
-        </h1>
-        <p className="text-sm" style={{ color: WEB.textSecondary }}>
-          {t("onboarding:cabinetCreated.subtitle")}
-        </p>
-      </div>
-
-      {/* Home › Room breadcrumb */}
-      <div
-        className="flex items-center gap-2 text-[13px] animate-in fade-in slide-in-from-bottom-1 duration-500"
-        style={{ color: WEB.textSecondary }}
-      >
-        <span className="inline-flex items-center gap-1.5">
-          <House className="size-3.5" style={{ color: WEB.accent }} />
-          <span style={{ color: WEB.text, fontWeight: 500 }}>{homeName}</span>
-        </span>
-        <ChevronRight className="size-3.5 rtl:rotate-180" style={{ color: WEB.textTertiary }} />
-        <span className="inline-flex items-center gap-1.5">
-          <RoomIcon className="size-3.5" style={{ color: WEB.accent }} />
-          <span style={{ color: WEB.text, fontWeight: 500 }}>{roomText(roomType, "label", roomConfig.label)}</span>
-        </span>
-      </div>
-
-      {/* Animated tree */}
-      <div
-        className="w-full rounded-xl px-6 py-5 font-mono text-[13px]"
-        style={{
-          background: WEB.bgCard,
-          border: `1px solid ${WEB.border}`,
-          lineHeight: 1.25,
-        }}
-      >
-        {treeLines.map((line, i) => {
-          const isVisible = i < visibleLines;
-          const isRoot = i === 0;
-          // Build the tree connector prefix
-          let prefix = "";
-          if (!isRoot && line.indent === 1) {
-            // Check if this is the last indent-1 line
-            const hasMoreAtSameLevel = treeLines.slice(i + 1).some((l) => l.indent === 1);
-            prefix = hasMoreAtSameLevel ? "├── " : "└── ";
-          } else if (line.indent === 2) {
-            // Sub-item under a parent
-            const hasMoreSiblings = treeLines.slice(i + 1).some(
-              (l) => l.indent === 2 && treeLines.slice(i + 1).indexOf(l) < treeLines.slice(i + 1).findIndex((x) => x.indent <= 1)
-            );
-            prefix = "│   " + (hasMoreSiblings ? "├── " : "└── ");
-          }
-
-          return (
-            <div
-              key={i}
-              className="transition-all duration-300"
-              style={{
-                opacity: isVisible ? 1 : 0,
-                transform: isVisible ? "translateX(0)" : slideOffset,
-              }}
-            >
-              {isRoot ? (
-                <span style={{ color: WEB.accent, fontWeight: 600 }}>
-                  {line.icon} {line.text}
-                </span>
-              ) : (
-                <span style={{ color: WEB.textSecondary }}>
-                  <span style={{ color: WEB.borderDark }}>{prefix}</span>
-                  {line.icon ? `${line.icon} ` : ""}
-                  {line.text}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Continue button */}
-      <button
-        onClick={onContinue}
-        className="inline-flex items-center gap-2 rounded-full px-8 py-3 text-sm font-medium text-white transition-all hover:-translate-y-0.5 duration-300"
-        style={{
-          background: WEB.accent,
-          opacity: showButton ? 1 : 0,
-          transform: showButton ? "translateY(0)" : "translateY(8px)",
-        }}
-      >
-        {t("onboarding:cabinetCreated.continue")}
-        <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
-      </button>
     </div>
   );
 }
@@ -903,189 +626,18 @@ function WelcomeBackStep({
 }
 
 function TeamBuildStep({
-  agentsLoading,
-  suggestedAgents,
-  libraryTemplates,
-  launchDisabled,
-  selectedCount,
-  maxAgents,
-  toggleAgent,
-  roomType,
-  homeName,
-  mandatoryAgents,
   onBack,
   onNext,
 }: {
-  agentsLoading: boolean;
-  suggestedAgents: SuggestedAgent[];
-  libraryTemplates: LibraryTemplate[];
-  launchDisabled: boolean;
-  selectedCount: number;
-  maxAgents: number;
-  toggleAgent: (slug: string) => void;
-  roomType: RoomType;
-  homeName: string;
-  mandatoryAgents: Set<string>;
   onBack: () => void;
   onNext: () => void;
 }) {
   const { t } = useLocale();
-  const [phase, setPhase] = useState(0);
-  // phase 0: title
-  // phase 1: "import" label
-  // phase 2: carousel visible
-  // phase 3: (reserved)
-  // phase 4: "or pick" label + agents
-
-  // Department-columns drag-to-scroll. The columns row has hidden scrollbars
-  // by design; click-and-drag horizontally to pan. A small movement threshold
-  // (DRAG_THRESHOLD_PX) keeps real clicks on column items from being eaten by
-  // the drag handler — only sustained motion counts as a drag.
-  const columnsScrollRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startScrollLeft: number;
-    moved: boolean;
-  } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const DRAG_THRESHOLD_PX = 5;
-
-  const onColumnsPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    // Ignore secondary buttons and touches that aren't primary contact.
-    if (e.button !== 0 && e.pointerType !== "touch") return;
-    const el = columnsScrollRef.current;
-    if (!el) return;
-    dragStateRef.current = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startScrollLeft: el.scrollLeft,
-      moved: false,
-    };
-  }, []);
-
-  const onColumnsPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const state = dragStateRef.current;
-    const el = columnsScrollRef.current;
-    if (!state || state.pointerId !== e.pointerId || !el) return;
-    const dx = e.clientX - state.startX;
-    if (!state.moved && Math.abs(dx) >= DRAG_THRESHOLD_PX) {
-      state.moved = true;
-      setIsDragging(true);
-      // Capture so we keep getting move/up events even if cursor leaves the
-      // container, and so text selection is suppressed for the duration.
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch {
-        /* some browsers reject capture on synthetic events; degrade gracefully */
-      }
-    }
-    if (state.moved) {
-      el.scrollLeft = state.startScrollLeft - dx;
-    }
-  }, []);
-
-  const onColumnsPointerEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const state = dragStateRef.current;
-    if (!state || state.pointerId !== e.pointerId) return;
-    const wasDrag = state.moved;
-    dragStateRef.current = null;
-    if (wasDrag) {
-      setIsDragging(false);
-      // Suppress the click that would otherwise fire on whatever was under
-      // the cursor at pointer-up — the user was dragging, not clicking.
-      const swallow = (ev: MouseEvent) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-      };
-      window.addEventListener("click", swallow, { capture: true, once: true });
-      // Belt-and-braces: if no click materializes (drag ended off any
-      // element), drop the listener on the next frame so we don't eat a
-      // legitimate click later.
-      window.requestAnimationFrame(() => {
-        window.removeEventListener("click", swallow, { capture: true });
-      });
-    }
-  }, []);
-
-  const [registryTemplates, setRegistryTemplates] = useState<RegistryTemplate[]>([]);
-  const [importTemplate, setImportTemplate] = useState<RegistryTemplate | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
-  const [importName, setImportName] = useState("");
-  const [importBusy, setImportBusy] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [importedSlugs, setImportedSlugs] = useState<Set<string>>(new Set());
-  const [registryOpen, setRegistryOpen] = useState(false);
-  const [importedCabinet, setImportedCabinet] = useState<{ name: string; template: RegistryTemplate } | null>(null);
-
-  useEffect(() => {
-    fetch("/api/registry")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.templates) setRegistryTemplates(data.templates);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const timers = [
-      setTimeout(() => setPhase(1), 600),
-      setTimeout(() => setPhase(2), 1200),
-      setTimeout(() => setPhase(4), 2200),
-    ];
-    return () => timers.forEach(clearTimeout);
-  }, []);
-
-  const handleImport = async () => {
-    if (!importTemplate) return;
-    setImportBusy(true);
-    setImportError(null);
-    try {
-      const res = await fetch("/api/registry/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: importTemplate.slug,
-          name: importName.trim() !== importTemplate.name ? importName.trim() : undefined,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setImportError(data?.error || t("onboarding:team.importFailed"));
-        setImportBusy(false);
-        return;
-      }
-      setImportedSlugs((prev) => new Set(prev).add(importTemplate.slug));
-      setImportOpen(false);
-      setImportedCabinet({ name: importName.trim() || importTemplate.name, template: importTemplate });
-      setImportTemplate(null);
-    } catch {
-      setImportError(t("onboarding:team.importFailedConnection"));
-    } finally {
-      setImportBusy(false);
-    }
-  };
-
-  // ── Success screen after import ──
-  if (importedCabinet) {
-    return (
-      <CabinetCreatedScreen
-        cabinetName={importedCabinet.name}
-        template={importedCabinet.template}
-        homeName={homeName}
-        roomType={roomType}
-        onContinue={onNext}
-      />
-    );
-  }
 
   return (
     <div className="flex flex-col gap-5">
       {/* Title */}
-      <div
-        className="text-center space-y-2 transition-all duration-500"
-        style={{ opacity: 1 }}
-      >
+      <div className="text-center space-y-2">
         <h1 className="font-logo text-2xl tracking-tight italic">
           <Trans
             i18nKey="onboarding:team.heading"
@@ -1095,250 +647,6 @@ function TeamBuildStep({
         <p className="text-sm" style={{ color: WEB.textSecondary }}>
           {t("onboarding:team.subtitle")}
         </p>
-      </div>
-
-      {/* Carousel section */}
-      <div
-        className="space-y-2 transition-all duration-700"
-        style={{
-          width: "100vw",
-          marginLeft: "calc(-50vw + 50%)",
-          opacity: phase >= 1 ? 1 : 0,
-          transform: phase >= 1 ? "translateY(0)" : "translateY(12px)",
-        }}
-      >
-        <div className="flex items-center justify-center gap-3">
-          <p
-            className="text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: WEB.textTertiary }}
-          >
-            {t("onboarding:team.startFromTemplate")}
-          </p>
-          <button
-            onClick={() => setRegistryOpen(true)}
-            className="text-[11px] font-semibold transition-colors"
-            style={{ color: WEB.accent }}
-          >
-            {t("onboarding:team.browseAll")} &rarr;
-          </button>
-        </div>
-        <div
-          className="transition-opacity duration-500"
-          style={{ opacity: phase >= 2 ? 1 : 0 }}
-        >
-          <TeamCarousel
-            templates={registryTemplates}
-            roomType={roomType}
-            onSelect={(t) => {
-              setImportTemplate(t);
-              setImportName(t.name);
-              setImportError(null);
-              setImportOpen(true);
-            }}
-          />
-        </div>
-        {importedSlugs.size > 0 && (
-          <p
-            className="text-[10px] font-medium text-center mt-1"
-            style={{ color: WEB.accent }}
-          >
-            <CheckCircle2 className="inline size-3 mr-1 -mt-px" />
-            {t("onboarding:team.cabinetsImported", { count: importedSlugs.size })}
-          </p>
-        )}
-      </div>
-
-      {/* Import dialog */}
-      <Dialog open={importOpen} onOpenChange={(v) => { if (!importBusy) setImportOpen(v); }}>
-        <DialogContent
-          className="sm:max-w-md"
-          style={{ background: WEB.bg, border: `1px solid ${WEB.border}`, color: WEB.text }}
-        >
-          <DialogHeader>
-            <DialogTitle style={{ color: WEB.text }}>
-              {t("onboarding:team.importTitle", { name: importTemplate?.name })}
-            </DialogTitle>
-          </DialogHeader>
-          {importTemplate && (
-            <div className="space-y-4">
-              <p className="text-sm" style={{ color: WEB.textSecondary }}>
-                {importTemplate.description}
-              </p>
-              <div className="flex gap-4 text-xs" style={{ color: WEB.textTertiary }}>
-                <span>{t("onboarding:team.agentCount", { count: importTemplate.agentCount })}</span>
-                <span>{t("onboarding:team.jobCount", { count: importTemplate.jobCount })}</span>
-                {importTemplate.childCount > 0 && (
-                  <span>{t("onboarding:team.subCabinetCount", { count: importTemplate.childCount })}</span>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium" style={{ color: WEB.textSecondary }}>
-                  {t("onboarding:team.cabinetNameLabel")}
-                </label>
-                <input
-                  value={importName}
-                  onChange={(e) => setImportName(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2 text-sm"
-                  style={{
-                    border: `1px solid ${WEB.border}`,
-                    background: WEB.bgCard,
-                    color: WEB.text,
-                    outline: "none",
-                  }}
-                />
-              </div>
-              {importError && (
-                <p className="text-xs" style={{ color: "#c0392b" }}>{importError}</p>
-              )}
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setImportOpen(false)}
-                  disabled={importBusy}
-                  className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                  style={{ color: WEB.textSecondary }}
-                >
-                  {t("onboarding:team.cancel")}
-                </button>
-                <button
-                  onClick={handleImport}
-                  disabled={importBusy || !importName.trim()}
-                  className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white transition-all disabled:opacity-40"
-                  style={{ background: WEB.accent }}
-                >
-                  {importBusy ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowRight className="size-3.5 rtl:rotate-180" />}
-                  {t("onboarding:team.importButton")}
-                </button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Registry browser — full-screen overlay */}
-      {registryOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: WEB.bg }}>
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${WEB.border}` }}>
-            <h2 className="font-logo text-xl italic" style={{ color: WEB.text }}>
-              {t("onboarding:team.browseCabinets")}
-            </h2>
-            <button
-              onClick={() => setRegistryOpen(false)}
-              className="flex items-center justify-center size-8 rounded-full transition-colors"
-              style={{ color: WEB.textSecondary, background: WEB.bgWarm }}
-            >
-              <XCircle className="size-5" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-auto">
-            <RegistryBrowser
-              onImported={(template, importedName) => {
-                setImportedSlugs((prev) => new Set(prev).add(template.slug));
-                setRegistryOpen(false);
-                setImportedCabinet({ name: importedName, template });
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Agent selection */}
-      <div
-        className="transition-all duration-700"
-        style={{
-          width: "100vw",
-          marginLeft: "calc(-50vw + 50%)",
-          opacity: phase >= 4 ? 1 : 0,
-          transform: phase >= 4 ? "translateY(0)" : "translateY(12px)",
-        }}
-      >
-        <p
-          className="text-[11px] font-semibold uppercase tracking-wider text-center mb-2"
-          style={{ color: WEB.textTertiary }}
-        >
-          {t("onboarding:team.orPickAgents")}{" "}
-          <span style={{ color: selectedCount >= maxAgents ? WEB.accent : WEB.textTertiary }}>
-            ({selectedCount}/{maxAgents})
-          </span>
-        </p>
-        {agentsLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="size-5 animate-spin" style={{ color: WEB.textTertiary }} />
-          </div>
-        ) : (
-          <div
-            ref={columnsScrollRef}
-            onPointerDown={onColumnsPointerDown}
-            onPointerMove={onColumnsPointerMove}
-            onPointerUp={onColumnsPointerEnd}
-            onPointerCancel={onColumnsPointerEnd}
-            className="flex items-start justify-center gap-3 overflow-x-auto px-6 pb-2 scrollbar-hide select-none"
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              cursor: isDragging ? "grabbing" : "grab",
-              touchAction: "pan-y",
-            } as React.CSSProperties}
-          >
-            {groupByDepartment(suggestedAgents, libraryTemplates, roomType).map(([label, agents]) => (
-              <div
-                key={label}
-                className="flex flex-col rounded-xl p-3 shrink-0"
-                style={{ background: WEB.bgWarm, width: 180, maxHeight: 260 }}
-              >
-                <p
-                  className="mb-2 text-[10px] font-semibold uppercase tracking-wider shrink-0"
-                  style={{ color: WEB.textTertiary }}
-                >
-                  {departmentLabelText(label)}
-                </p>
-                <div className="flex flex-col gap-1.5 overflow-y-auto scrollbar-thin pr-1">
-                  {agents.map((agent) => {
-                    const isMandatory = mandatoryAgents.has(agent.slug);
-                    const atLimit = selectedCount >= maxAgents && !agent.checked;
-                    return (
-                      <button
-                        key={agent.slug}
-                        onClick={() => toggleAgent(agent.slug)}
-                        disabled={isMandatory || atLimit}
-                        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-all"
-                        style={{
-                          border: `1px solid ${agent.checked ? WEB.accent : WEB.border}`,
-                          background: agent.checked ? WEB.accentBg : WEB.bgCard,
-                          opacity: atLimit ? 0.45 : 1,
-                          cursor: isMandatory ? "default" : atLimit ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        <div
-                          className="flex size-3.5 shrink-0 items-center justify-center rounded"
-                          style={{
-                            border: `1.5px solid ${agent.checked ? WEB.accent : WEB.borderDark}`,
-                            background: agent.checked ? WEB.accent : "transparent",
-                          }}
-                        >
-                          {agent.checked && (
-                            <Check className="size-2 text-white" />
-                          )}
-                        </div>
-                        <span className="text-xs">{agent.emoji}</span>
-                        <p className="text-[11px] font-medium truncate" style={{ color: WEB.text }}>
-                          {agent.name}
-                        </p>
-                        {isMandatory && (
-                          <span
-                            className="ml-auto text-[9px] font-medium uppercase tracking-wide shrink-0"
-                            style={{ color: WEB.textTertiary }}
-                          >
-                            {t("onboarding:team.required")}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="flex items-center justify-between pt-1">
@@ -1352,8 +660,7 @@ function TeamBuildStep({
         </button>
         <button
           onClick={onNext}
-          disabled={launchDisabled}
-          className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0"
+          className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:-translate-y-0.5"
           style={{ background: WEB.accent }}
         >
           {t("onboarding:actions.next")}
@@ -1878,6 +1185,19 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
       p.available && p.authenticated ? 0 : p.available ? 1 : 2;
     return [...providers].sort((a, b) => rank(a) - rank(b));
   }, [providers]);
+  const TIER_1_PROVIDER_IDS = useMemo(
+    () => new Set(["gemini-cli", "claude-code", "opencode", "codex-cli"]),
+    []
+  );
+  const tier1Providers = useMemo(
+    () => sortedProviders.filter((p) => TIER_1_PROVIDER_IDS.has(p.id)),
+    [sortedProviders, TIER_1_PROVIDER_IDS]
+  );
+  const tier2Providers = useMemo(
+    () => sortedProviders.filter((p) => !TIER_1_PROVIDER_IDS.has(p.id)),
+    [sortedProviders, TIER_1_PROVIDER_IDS]
+  );
+  const [showMoreAis, setShowMoreAis] = useState(false);
   const expandedProviderInfo = useMemo(
     () => (expandedProvider ? providers.find((p) => p.id === expandedProvider) || null : null),
     [expandedProvider, providers]
@@ -2489,19 +1809,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {/* Step 4: Team Suggestion — carousel + agent picker */}
+          {/* Step 4: Build your team — title only for now */}
           {step === STEP_TEAM && (
             <TeamBuildStep
-              agentsLoading={agentsLoading}
-              suggestedAgents={suggestedAgents}
-              libraryTemplates={libraryTemplates}
-              launchDisabled={launchDisabled}
-              selectedCount={selectedAgentCount}
-              maxAgents={MAX_AGENTS}
-              toggleAgent={toggleAgent}
-              roomType={answers.roomType}
-              homeName={answers.homeName || (answers.name ? `${answers.name}'s Home` : "Home")}
-              mandatoryAgents={mandatoryAgents}
               onBack={() => setStep(STEP_ROOM_SETUP)}
               onNext={() => setStep(STEP_PROVIDER)}
             />
@@ -2509,7 +1819,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
 
           {/* Step 5: AI Provider Check */}
           {step === STEP_PROVIDER && (
-            <div className="mx-auto flex max-w-xl flex-col gap-6 animate-in fade-in duration-300">
+            <div className="mx-auto flex max-w-3xl flex-col gap-6 animate-in fade-in duration-300">
               <div className="text-center space-y-2">
                 <h1 className="font-logo text-2xl tracking-tight italic">
                   {t("onboarding:provider.heading")}
@@ -2526,82 +1836,83 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-                    {sortedProviders.map((p) => {
-                      const isReady = !!(p.available && p.authenticated);
-                      const isInstalled = !!p.available;
-                      const isSelected = selectedProvider === p.id;
-                      const isExpanded = expandedProvider === p.id;
-                      const verifyState =
-                        onboardingVerifyState[p.id] ?? { phase: "idle" as const };
-                      const verifyMeta =
-                        verifyState.phase === "done"
-                          ? ONBOARDING_VERIFY_META[verifyState.result.status]
-                          : null;
-                      const statusLabel = isReady
-                        ? t("onboarding:providerStatus.ready")
-                        : isInstalled
-                          ? t("onboarding:providerStatus.loginRequired")
-                          : t("onboarding:providerStatus.notInstalled");
-                      const statusColor = isReady
-                        ? "#16a34a"
-                        : isInstalled
-                          ? "#d97706"
-                          : WEB.textTertiary;
-                      const statusBg = isReady
-                        ? "rgba(22,163,74,0.12)"
-                        : isInstalled
-                          ? "rgba(217,119,6,0.12)"
-                          : "rgba(100,116,139,0.12)";
-                      const cardBorder = isReady
-                        ? isSelected
-                          ? WEB.accent
-                          : WEB.borderLight
-                        : isInstalled
-                          ? "rgba(217,119,6,0.45)"
-                          : WEB.borderLight;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            if (isReady) {
-                              const nextModelId = p.models?.[0]?.id ?? null;
-                              setSelectedProvider(p.id);
-                              setSelectedModel(nextModelId);
-                              setSelectedEffort(
-                                getSuggestedProviderEffort(
-                                  p,
-                                  nextModelId || undefined
-                                )?.id || null
-                              );
-                            } else {
-                              setExpandedProvider(isExpanded ? null : p.id);
-                            }
-                          }}
-                          className="group relative flex flex-col items-start gap-2 rounded-xl p-3 text-left transition-all hover:-translate-y-0.5"
-                          style={{
-                            background:
-                              isSelected && isReady ? WEB.accentBg : WEB.bgCard,
-                            border: `1px solid ${cardBorder}`,
-                            boxShadow:
-                              isSelected && isReady
-                                ? `0 0 0 2px ${WEB.accent}22`
-                                : undefined,
-                            opacity: isReady ? 1 : isInstalled ? 0.95 : 0.7,
-                          }}
-                        >
-                          {isSelected && isReady && (
-                            <span
-                              className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full"
-                              style={{ background: WEB.accent }}
-                            >
-                              <Check className="size-2.5 text-white" />
-                            </span>
-                          )}
-                          <div className="flex w-full items-center gap-2">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-start gap-3">
+                    <div
+                      className={`flex flex-col gap-2 transition-[flex-basis] duration-300 ease-out ${
+                        expandedProvider
+                          ? "hidden md:flex md:basis-[42%] md:flex-grow-0 md:flex-shrink-0"
+                          : "basis-full"
+                      }`}
+                    >
+                    {(() => {
+                      const renderRow = (p: ProviderInfo) => {
+                        const isReady = !!(p.available && p.authenticated);
+                        const isInstalled = !!p.available;
+                        const isSelected = selectedProvider === p.id;
+                        const isExpanded = expandedProvider === p.id;
+                        const verifyState =
+                          onboardingVerifyState[p.id] ?? { phase: "idle" as const };
+                        const verifyMeta =
+                          verifyState.phase === "done"
+                            ? ONBOARDING_VERIFY_META[verifyState.result.status]
+                            : null;
+                        const statusLabel = isReady
+                          ? t("onboarding:providerStatus.ready")
+                          : isInstalled
+                            ? t("onboarding:providerStatus.loginRequired")
+                            : t("onboarding:providerStatus.notInstalled");
+                        const statusColor = isReady
+                          ? "#16a34a"
+                          : isInstalled
+                            ? "#d97706"
+                            : WEB.textTertiary;
+                        const statusBg = isReady
+                          ? "rgba(22,163,74,0.12)"
+                          : isInstalled
+                            ? "rgba(217,119,6,0.12)"
+                            : "rgba(100,116,139,0.12)";
+                        const cardBorder = isReady
+                          ? WEB.borderLight
+                          : isInstalled
+                            ? "rgba(217,119,6,0.35)"
+                            : WEB.borderLight;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              if (isReady) {
+                                const nextModelId = p.models?.[0]?.id ?? null;
+                                setSelectedProvider(p.id);
+                                setSelectedModel(nextModelId);
+                                setSelectedEffort(
+                                  getSuggestedProviderEffort(
+                                    p,
+                                    nextModelId || undefined
+                                  )?.id || null
+                                );
+                                if (expandedProvider !== null) {
+                                  setExpandedProvider(p.id);
+                                }
+                              } else {
+                                setExpandedProvider(isExpanded ? null : p.id);
+                              }
+                            }}
+                            className="group w-full flex items-center gap-3 rounded-xl px-4 py-3 text-start transition-all hover:-translate-y-0.5"
+                            style={{
+                              background:
+                                isSelected && isReady ? WEB.accentBg : WEB.bgCard,
+                              border: `1px solid ${cardBorder}`,
+                              boxShadow: isExpanded
+                                ? `0 0 0 2px ${WEB.accent}1F`
+                                : isSelected && isReady
+                                  ? `0 0 0 2px ${WEB.accent}14`
+                                  : undefined,
+                              opacity: isReady ? 1 : isInstalled ? 0.95 : 0.7,
+                            }}
+                          >
                             <div
-                              className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                              className="flex size-9 shrink-0 items-center justify-center rounded-lg"
                               style={{
                                 background: WEB.bgWarm,
                                 color: WEB.accent,
@@ -2609,70 +1920,155 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                             >
                               <ProviderGlyph icon={p.icon} className="size-4" />
                             </div>
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 flex items-baseline gap-2 flex-wrap">
                               <p
-                                className="truncate text-[13px] font-medium"
+                                className="text-[14px] font-medium leading-tight flex items-center gap-1.5"
                                 style={{ color: WEB.text }}
                               >
-                                {p.name}
+                                <span>{p.name}</span>
+                                {isSelected && isReady && (
+                                  <Check
+                                    className="size-3.5 shrink-0"
+                                    style={{ color: WEB.accent }}
+                                  />
+                                )}
                               </p>
                               {isReady && p.version && (
                                 <p
-                                  className="truncate text-[10px]"
-                                  style={{ color: WEB.textTertiary }}
+                                  className="text-[11px] leading-tight truncate"
+                                  style={{ color: WEB.textTertiary, opacity: 0.7 }}
                                 >
                                   {p.version}
                                 </p>
                               )}
                             </div>
-                          </div>
-                          <div className="flex w-full items-center justify-between gap-2">
                             <span
-                              className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                              className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
                               style={{ background: statusBg, color: statusColor }}
                             >
                               {verifyMeta ? t(`onboarding:verify.${verifyMeta.labelKey}`) : statusLabel}
                             </span>
                             <span
-                              className="inline-flex items-center gap-1 text-[10px] font-medium"
-                              style={{ color: WEB.textTertiary }}
+                              className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium whitespace-nowrap transition-colors"
+                              style={{
+                                color: isExpanded ? WEB.accent : WEB.textTertiary,
+                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setExpandedProvider(isExpanded ? null : p.id);
                               }}
                               role="button"
+                              tabIndex={0}
                             >
                               {isReady
                                 ? t("onboarding:provider.guide")
                                 : isInstalled
                                   ? t("onboarding:provider.logIn")
                                   : t("onboarding:provider.install")}
-                              <ChevronDown
-                                className="size-3 transition-transform"
-                                style={{
-                                  transform: isExpanded
-                                    ? "rotate(180deg)"
-                                    : "rotate(0deg)",
-                                }}
-                              />
+                              <ChevronRight className="size-3 rtl:rotate-180" />
                             </span>
-                          </div>
-                        </button>
+                          </button>
+                        );
+                      };
+                      const COMING_SOON_ITEMS: { name: string; type: string; icon: string }[] = [
+                        { name: "Anthropic API", type: "API", icon: "api" },
+                        { name: "OpenAI API", type: "API", icon: "api" },
+                        { name: "Google AI API", type: "API", icon: "api" },
+                        { name: "Plugin SDK", type: "SDK", icon: "terminal" },
+                      ];
+                      return (
+                        <>
+                          {tier1Providers.map(renderRow)}
+                          <button
+                            type="button"
+                            onClick={() => setShowMoreAis((v) => !v)}
+                            className="inline-flex items-center gap-1.5 self-start mt-3 text-[11px] font-semibold uppercase tracking-wider transition-opacity hover:opacity-80"
+                            style={{ color: WEB.textTertiary, background: "transparent" }}
+                          >
+                            {t("onboarding:provider.moreModels")}
+                            <ChevronDown
+                              className="size-3 transition-transform"
+                              style={{
+                                transform: showMoreAis
+                                  ? "rotate(180deg)"
+                                  : "rotate(0deg)",
+                              }}
+                            />
+                          </button>
+                          {showMoreAis && (
+                            <>
+                              {tier2Providers.map(renderRow)}
+                              {COMING_SOON_ITEMS.length > 0 && (
+                                <p
+                                  className="text-[11px] font-semibold uppercase tracking-wider mt-3 self-start"
+                                  style={{ color: WEB.textTertiary }}
+                                >
+                                  {t("onboarding:provider.comingSoon")}
+                                </p>
+                              )}
+                              {COMING_SOON_ITEMS.map((cs) => (
+                                <div
+                                  key={cs.name}
+                                  className="w-full flex items-center gap-3 rounded-xl px-4 py-3"
+                                  style={{
+                                    background: WEB.bgCard,
+                                    border: `1px solid ${WEB.borderLight}`,
+                                    opacity: 0.55,
+                                  }}
+                                >
+                                  <div
+                                    className="flex size-9 shrink-0 items-center justify-center rounded-lg"
+                                    style={{ background: WEB.bgWarm, color: WEB.textTertiary }}
+                                  >
+                                    {cs.icon === "terminal" ? (
+                                      <Terminal className="size-4" />
+                                    ) : (
+                                      <Zap className="size-4" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0 flex items-baseline gap-2 flex-wrap">
+                                    <p
+                                      className="text-[14px] font-medium leading-tight"
+                                      style={{ color: WEB.textSecondary }}
+                                    >
+                                      {cs.name}
+                                    </p>
+                                    <p
+                                      className="text-[11px] leading-tight"
+                                      style={{ color: WEB.textTertiary, opacity: 0.7 }}
+                                    >
+                                      {t("onboarding:provider.agentType", { type: cs.type })}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </>
                       );
-                    })}
-                  </div>
+                    })()}
 
-                  <button
-                    onClick={checkProvider}
-                    className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-all hover:-translate-y-0.5"
-                    style={{ background: WEB.bgWarm, border: `1px solid ${WEB.borderLight}`, color: WEB.accent }}
-                  >
-                    <RefreshCw className="size-3" />
-                    {t("onboarding:provider.recheck")}
-                  </button>
+                    <button
+                      onClick={checkProvider}
+                      className="inline-flex items-center gap-1.5 self-start mt-4 text-[11px] transition-opacity hover:opacity-80"
+                      style={{ color: WEB.textTertiary, background: "transparent" }}
+                    >
+                      <RefreshCw className="size-3" />
+                      {t("onboarding:provider.recheck")}
+                    </button>
+                    </div>
 
-                  {/* Install / verify guide drawer */}
-                  {expandedProviderInfo && (() => {
+                    {/* Install / verify guide column (slides in from the end side, RTL-aware) */}
+                    {expandedProviderInfo && (
+                      <div
+                        key={expandedProviderInfo.id}
+                        className="basis-full md:basis-[58%] md:flex-grow-0 md:flex-shrink-0"
+                        style={{
+                          animation: "onboarding-guide-slide-in 300ms ease-out",
+                          ["--guide-slide-from" as never]: dir === "rtl" ? "-24px" : "24px",
+                        }}
+                      >
+                        {(() => {
                     const p = expandedProviderInfo;
                     const setupSteps: { title: string; detail: string; cmd?: string; openTerminal?: boolean; link?: { label: string; url: string } }[] = [
                       { title: t("onboarding:provider.openTerminalTitle"), detail: t("onboarding:provider.openTerminalDetail"), openTerminal: true },
@@ -2692,7 +2088,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                       : null;
                     return (
                       <div
-                        className="rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200"
+                        className="rounded-xl p-4 space-y-3"
                         style={{
                           background: WEB.bgWarm,
                           border: `1px solid ${WEB.borderLight}`,
@@ -2857,56 +2253,16 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                         </p>
                       </div>
                     );
-                  })()}
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Model + effort selectors are intentionally hidden during onboarding —
                   the provider tile click seeds the first model + suggested effort,
                   and both are refinable later from Settings → Providers. */}
-
-              {/* Coming soon providers */}
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: WEB.textTertiary }}>
-                  {t("onboarding:provider.comingSoon")}
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {[
-                    { name: "Anthropic API", type: "API", icon: "api" },
-                    { name: "OpenAI API", type: "API", icon: "api" },
-                    { name: "Google AI API", type: "API", icon: "api" },
-                    { name: "Plugin SDK", type: "SDK", icon: "terminal" },
-                  ].map((p) => (
-                    <div
-                      key={p.name}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3 opacity-40"
-                      style={{
-                        background: WEB.bgCard,
-                        border: `1px solid ${WEB.borderLight}`,
-                      }}
-                    >
-                      <div
-                        className="flex size-8 items-center justify-center rounded-lg"
-                        style={{ background: WEB.bgWarm, color: WEB.textTertiary }}
-                      >
-                        {p.icon === "terminal" ? (
-                          <Terminal className="size-4" />
-                        ) : (
-                          <Zap className="size-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium" style={{ color: WEB.textSecondary }}>
-                          {p.name}
-                        </p>
-                        <p className="text-[10px]" style={{ color: WEB.textTertiary }}>
-                          {t("onboarding:provider.agentType", { type: p.type })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               <div className="flex items-center justify-between pt-2">
                 <button
