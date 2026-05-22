@@ -1,0 +1,33 @@
+# CodeRabbit AI PR Review Configuration
+# Docs: https://docs.coderabbit.ai/configure-coderabbit
+
+language: en-US
+early_access: true
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_filters:
+    - "!data/**"
+    - "!cabinetai/dist/**"
+    - "!**/*.lock"
+    - "!**/*.map"
+  path_instructions:
+    - path: "src/**/*.ts"
+      instructions: |
+        Review for TypeScript best practices, proper types, and runtime safety.
+        Suggest improvements for error handling and async patterns.
+    - path: "src/**/*.tsx"
+      instructions: |
+        Review React components for performance, accessibility, and proper hooks usage.
+        Ensure proper error boundaries and loading states.
+chat:
+  auto_reply: true
