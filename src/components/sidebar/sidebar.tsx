@@ -68,6 +68,14 @@ export function Sidebar() {
   const setSection = useAppStore((s) => s.setSection);
   const sidebarDrawer = useAppStore((s) => s.sidebarDrawer);
   const defaultRoom = useRoomsStore((s) => s.defaultRoom);
+  // The cabinet new pages/cabinets should be created *inside* (a child of the
+  // cabinet you're currently in). The data-dir root (".") is the neutral home
+  // container, not a cabinet, so treat it as "use the default room" — otherwise
+  // new items land at the home root as siblings of the rooms.
+  const currentCabinetParent =
+    section.cabinetPath && section.cabinetPath !== ROOT_CABINET_PATH
+      ? section.cabinetPath
+      : defaultRoom || "";
   const [refreshing, setRefreshing] = useState(false);
   const lastRefreshAtRef = useRef(0);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -246,16 +254,15 @@ export function Sidebar() {
           {sidebarDrawer === "data" && (
             <>
               <div className="min-w-0 flex-1">
-                <NewPageDialog />
+                {/* Create the page inside the cabinet you're in, not at the
+                    data-dir (home) root. */}
+                <NewPageDialog parentPath={currentCabinetParent} />
               </div>
               <div className="min-w-0 flex-1">
                 {/* Rooms v3: the bottom button makes a cabinet *inside the
-                    current room* (a sibling of the room's pages), not a new
-                    top-level room. New rooms are created from the home
-                    switcher's "Add room". */}
-                <NewCabinetDialog
-                  parentPath={section.cabinetPath || defaultRoom || ""}
-                />
+                    current cabinet* (a child), not a new top-level room. New
+                    rooms are created from the home switcher's "Add room". */}
+                <NewCabinetDialog parentPath={currentCabinetParent} />
               </div>
             </>
           )}
