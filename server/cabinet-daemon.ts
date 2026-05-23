@@ -1802,6 +1802,7 @@ const server = http.createServer(async (req, res) => {
         : "all";
       const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
       const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 50;
+      const cabinet = url.searchParams.get("cabinet") || undefined;
 
       const needsAgents = scope === "all" || scope === "agents";
       const needsTasks = scope === "all" || scope === "tasks";
@@ -1820,7 +1821,8 @@ const server = http.createServer(async (req, res) => {
         },
         q,
         scope,
-        limit
+        limit,
+        cabinet
       );
 
       res.writeHead(200, { "Content-Type": "application/json" });

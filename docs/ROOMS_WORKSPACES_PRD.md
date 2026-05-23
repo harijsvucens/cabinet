@@ -1,184 +1,144 @@
 # PRD — Rooms (Workspaces) & the Home Switcher
 
-**Status:** Draft (v2 — lighter direction) · **Author:** hilash · **Date:** 2026-05-22
-**Driver:** Bring back the home button next to the logo and turn it into a Notion-style
-workspace switcher. Let people move between *rooms* (office, study, research…) — and, later,
-open any cabinet in its own window.
+**Status:** Shipped (v3 — true sibling rooms) · **Author:** hilash · **Last updated:** 2026-05-23
+**Driver:** A home-button switcher next to the logo that moves you between *rooms* (office, study,
+research, personal…), where each room is its own isolated workspace — and lets you open any room in
+its own window.
 
-> **v2 note:** v1 of this PRD proposed flattening into `data/<room>/` with a destructive
-> migration and "nothing shared." Investigation showed Cabinet **already** stores every cabinet
-> as a self-contained, path-keyed workspace (agents, tasks, jobs, skills). So v2 *surfaces and
-> completes* that existing model instead of rebuilding it. No data migration.
+> **Version history.**
+> - **v1 (draft):** flatten into `data/<room>/` with a destructive migration and "nothing shared."
+> - **v2 (draft):** *lighter* — keep `data/` as both the root cabinet *and* the parent of all rooms,
+>   surface the existing per-cabinet isolation, **no migration**.
+> - **v3 (shipped, this doc):** v2's "root is the default room" turned out to be the bug, not a
+>   feature — the root cabinet was simultaneously a room *and* the physical parent of every other
+>   room, so isolation could only be faked with a UI filter. v3 makes `data/` a neutral **home
+>   container** and every room a true **sibling cabinet**, so isolation is structural. There *is* a
+>   migration, but it is safe and idempotent.
+>
+> Implementation detail + the full gap analysis live in **`docs/ROOMS_V3_TRUE_ISOLATION_PLAN.md`**.
+> The end-user guide is **`getting-started/rooms/`** (shipped in `resources/getting-started/`).
 
 ---
 
 ## 1. Summary
 
-Cabinet's analogy is *your home*, and the file system already mirrors it: every cabinet — at
-any depth — is its own workspace, addressed by its path (`cabinetPath`). Agents, tasks,
-conversations, jobs, and skills already resolve under `data/<cabinetPath>/`. What's missing is
-(a) a way to **see and switch** between your top-level cabinets, (b) per-cabinet **identity**
-(icon + theme), and (c) making the two still-global bits (**theme**, **search scope**) follow
-the cabinet you're in.
+Cabinet's analogy is *your home*. v3 makes the file system match it literally: **`data/` is the home
+container** (it holds your rooms but is not itself a working cabinet), and **each room is a
+self-contained, isolated cabinet** at `data/<room>/` — its own pages, agents, tasks, jobs, chat,
+skills, search index, and look. No room is the parent of another, so **Personal and Work never mix**.
 
-**Rooms** = the top-level cabinets, surfaced in a **home-button switcher** (icon + name → switch
-/ edit / add). The **root stays the default room** — no migration. Because the window's scope is
-just a `cabinetPath`, "open any cabinet (a room *or* a nested sub-cabinet) in its own window"
-falls out almost for free, which is the foundation for multi-window later.
+You are always *inside a room*. The **home-button switcher** (the room's icon next to the `cabinet`
+logo) lets you switch rooms, customize a room (name / icon / color / theme), add a room, or open a
+room in its own window. Within a room, nested sub-cabinets still work exactly as before (roll-up
+visibility own / +1 / +2 / all); across rooms there is zero knowledge.
 
 ## 2. Goals & non-goals
 
-**Goals**
-- One click on the logo → a switcher: current room (icon + name), list, switch, edit, add.
-- Per-cabinet **icon** and **theme**, stored in the cabinet's `.cabinet` manifest.
-- **Theme** and **search** follow the active cabinet (the two things still global today).
-- A window's scope is a `cabinetPath` — so the design is **multi-window-ready** (window per cabinet).
-- **No destructive migration.** Reuse the per-cabinet isolation that already exists.
+**Goals (all shipped)**
+- One click on the room icon → a switcher: current room, list, switch, customize, add, open-in-window.
+- Each room is a **structurally isolated** top-level cabinet (own subtree + own search DB). No room
+  parents another.
+- Per-room **identity**: icon + accent color + theme, stored in the room's `.cabinet` manifest.
+- **Theme** and **search** follow the active room. Theme applies on switch; search is scoped to the room.
+- A window's scope is a `cabinetPath`, so **open any room in its own window** works (Electron + web),
+  each window keeping its own room and theme.
+- A **safe, idempotent migration** for existing installs; **onboarding** creates rooms natively.
 
 **Non-goals (this pass)**
-- Flattening the model or any forced `data/` move. (v1's plan — dropped.)
-- Tearing down the existing nested **roll-up** visibility (own / +1 / +2 / all). It stays; new
-  rooms just default to "own" (isolated).
-- The actual **second-window experience** (Electron multi-window + a "New Window in…" command).
-  The app is single-window today (`electron/main.cjs:594`). We make the scope per-window-ready
-  now and build the window UX as a fast-follow (§8).
-- Cross-cabinet search (search is scoped to the active cabinet's subtree).
-- Reworking onboarding's room picker (templated types + starter teams). Separate later PRD.
+- Cross-room search or cross-room agent roll-up. (Rooms are hard isolation boundaries.)
+- A full retire of the `"."`-as-root code path everywhere (see §7 — we kept a thin empty "home"
+  cabinet instead, on purpose).
+- A dedicated home/launcher *screen* (you land directly in the default room; the switcher is the home UX).
+- Templated room-types onboarding picker beyond what already exists.
 
-## 3. Decisions (from product Q&A, 2026-05-22)
+## 3. Decisions (shipped)
 
 | Question | Decision |
 |---|---|
-| Overall direction | **Lighter — surface what exists.** Rooms = top-level cabinets in a switcher; reuse per-cabinet isolation. *(Reversed v1's flatten+migrate.)* |
-| What is a room? | A **top-level cabinet** (direct child of `data/` with a `.cabinet` manifest). The **root is the default room**. Plain folders stay as content; "promote to room" is a one-click action. |
-| Home button | **Notion-style switcher** — current room (icon + name), list, switch, edit, add. |
-| Window scope / multi-window | A window carries a **`cabinetPath`** (the address), not a new opaque ID. Room = the path's relevant cabinet; "open any cabinet in a window" works on the scope key the code already uses. Multi-window UX is a fast-follow. |
-| What's per-cabinet (already) | Agents, tasks/conversations, jobs, skills — **already** keyed by path. We default new rooms to **isolated** (visibility "own", no global agents). |
-| Net-new isolation | **Theme** (today global) → per-cabinet. **Search** (today one root DB) → scoped to the active cabinet's subtree. |
-| Room metadata | **Extend the `.cabinet` manifest** with `icon` + `theme` (name already exists). No new dotfile. |
-| Migration | **None.** Root becomes the default room (its existing `.cabinet` gains icon/theme). Name unchanged but **renameable** in the switcher (e.g. to "Studio"). |
-| `.global-agents` | **Kept as opt-in** cross-room agents, default empty. *(Reversed v1's "retire" — no reason to remove working machinery.)* |
-| Switch UX | **Instant + subtle crossfade** (reload scoped stores, apply theme behind a quick fade). |
-| Onboarding | **Minimal** later; full templated picker is a separate PRD. |
-| Caveat (not isolatable) | The **OS-level AI CLI login** lives outside the cabinet, so it's machine-level and shared regardless. Per-cabinet isolation covers everything inside the cabinet. |
+| What is a room? | A **top-level cabinet**: a direct child of `data/` with a `.cabinet` manifest (`kind: room`). Plain folders are **not** rooms (they are content inside a room). |
+| What is `data/`? | The neutral **home container**. It carries a thin `.cabinet` (`kind: home`) marker + `data/.home/home.json`, but holds **no content/agents/tasks** of its own. |
+| Isolation | **Structural.** Each room is a separate subtree with its **own `.cabinet.db`**. The tree is rooted per room; search is room-scoped; roll-up never crosses a room boundary (the home rolls up nothing). |
+| Default room | `data/.home/home.json` `defaultRoom` (set at onboarding/migration). The app lands inside it. Renameable in the switcher. |
+| Home button | The room's **icon + color** next to the logo; the dropdown switches / customizes / adds / opens-in-window. The room name shows in the drawer + main header. |
+| Per-room identity | `icon` + `color` + `theme` under `room:` in each cabinet's `.cabinet` manifest. New rooms get a distinct icon/color automatically. |
+| Theme | Per-room. Applied on switch and on load via `RoomThemeSync`; falls back to the global theme when unset. Lives only in the DOM, so each window themes independently. |
+| Search | One `.cabinet.db` **per room**; queries are scoped to the active room (pages/agents/tasks filtered by room prefix). No cross-room leak. |
+| Creation | **Add room** (switcher) → a new top-level isolated room (`kind: room` + auto icon/color). **New Cabinet** (sidebar) → a sub-cabinet *inside the current room* (`kind: child`). |
+| `.global-agents` | Kept as the one opt-in **cross-room** agents location (default empty). |
+| Multi-window | A window's scope is its URL hash (`#/cabinet/<room>`). Electron spawns a native `BrowserWindow` reusing the backend; web uses `window.open`. Each window keeps its own room + theme. |
+| Migration | **Yes, but safe** — idempotent + git-checkpointed (`scripts/migrate-rooms-v3.mjs`). Onboarding creates rooms natively, so new installs need no migration. |
 
 ---
 
-## 4. Current state — what already exists (and we reuse)
+## 4. What shipped (where things live)
 
-Every cabinet (root or child, any depth) is already a self-contained workspace, keyed by path:
-
-| Concern | Where it lives today | Per-cabinet? |
-|---|---|---|
-| Agents | `data/<cabinetPath>/.agents/<slug>/` (`persona-manager.ts:41`) | ✅ |
-| Tasks / conversations | `data/<cabinetPath>/.agents/.conversations/` (`conversation-store.ts:58`) | ✅ |
-| Jobs / automations | `data/<cabinetPath>/.jobs/` (`cabinet-scaffold.ts:114`) | ✅ |
-| Skills | `data/<cabinet>/.agents/skills/` (CLAUDE.md rule 15) | ✅ |
-| Cabinet identity | `.cabinet` manifest (`id`, `name`, `kind`, …) per cabinet | ✅ |
-| Viewer scope | `section.cabinetPath` (`app-store.ts`) | ✅ |
-| Create a cabinet | New Cabinet → `/api/cabinets/create` → `scaffoldCabinet()` (writes `.cabinet`, `index.md`, `.agents/`, `.jobs/`, `.cabinet-state/`) | ✅ |
-| Roll-up visibility | own / +1 / +2 / all (`visibility.ts`) | ✅ |
-| **Theme** | global `localStorage` (`theme-initializer.tsx`, `themes.ts`) | ❌ (make per-cabinet) |
-| **Search index / DB** | one root `data/.cabinet.db` | ❌ (scope by path) |
-| Cross-cabinet agents | `data/.global-agents/` (`persona-manager.ts:27`) | shared by design |
-
-Also relevant: the home button was simplified in `1a85287` (the `cabinet` wordmark still navigates
-home — `sidebar.tsx:184-210`); room *types* with Lucide icons already exist in
-`src/lib/onboarding/rooms.ts`; `.cabinet` metadata is read by `overview.ts`. In *this* dev cabinet,
-the top-level dirs (`content-creator`, `saas-startup`, …) are **plain folders** (no `.cabinet`), so
-only the root is a real cabinet today.
-
-## 5. Design
-
-### 5.1 What a "room" is
-- A **room** is a top-level cabinet: a direct child of `data/` whose dir has a `.cabinet` manifest.
-- The **root cabinet is the default room** (you start there). You're always scoped to a room
-  (`section.cabinetPath` defaults to the root).
-- Plain top-level **folders** (no manifest) remain content inside the root. The switcher offers
-  **Promote to room** (writes a `.cabinet` via `scaffoldCabinet`, leaving content in place).
-- Nested sub-cabinets keep working exactly as today (per-path isolation + roll-up).
-
-### 5.2 The switcher (UI)
-Replaces the logo button (`sidebar.tsx:184-210`):
-- Trigger: room **icon + name**.
-- Dropdown: list of rooms (top-level cabinets) with icon + active check → click to switch;
-  **+ Add room**; per-row **Edit** (name, icon, theme); **Promote folder to room** for plain folders.
-- Switch = set `section.cabinetPath` to the room, reload the scoped stores (tree/Team/Tasks),
-  apply the room's theme — behind a subtle crossfade.
-- i18n + RTL like the rest of the sidebar (en + he minimum).
-
-### 5.3 Room metadata (`.cabinet` manifest)
-Extend the existing manifest (no new dotfile):
-```yaml
-schemaVersion: 1
-id: marketing-root
-name: Marketing            # display name (renameable in the switcher)
-kind: root
-room:                      # NEW
-  icon: briefcase          # Lucide name (from rooms.ts set) or emoji
-  theme: paper             # theme name from src/lib/themes.ts; unset → global default
-version: 0.1.0
-entry: index.md
+```
+data/                         ← home container (NOT a working cabinet)
+├── .cabinet                  ← thin kind:home marker (keeps "." a valid empty scope)
+├── .home/home.json           ← { defaultRoom, lastActiveRoom }
+├── .agents/.config/          ← GLOBAL app config: user, providers, onboarding-complete, integrations
+├── .global-agents/           ← opt-in cross-room agents (default empty)
+├── .cabinet-state/           ← machine/app state (ports, disclaimer-ack, file-schema)
+├── .git/                     ← one repo for the whole home (history preserved across rooms)
+├── work/                     ← a room: an isolated, self-contained cabinet
+│   ├── .cabinet              ← kind:room + room:{icon,color,theme}
+│   ├── .cabinet.db           ← this room's own search index
+│   ├── .agents/  .jobs/  .chat/  .cabinet-state/
+│   ├── getting-started/  index.md  …content…
+│   └── …nested sub-cabinets (kind:child) roll up within the room…
+├── personal/                 ← another room, fully isolated from `work`
+└── …more sibling rooms…
 ```
 
-### 5.4 Per-cabinet theme
-The only currently-global thing we move per-cabinet. On switch, read `room.theme` from the target
-cabinet's `.cabinet`; apply via the existing `applyTheme()` (`themes.ts`); fall back to the global
-default when unset. Each window has its own DOM, so per-window themes don't collide.
+| Concern | Implementation |
+|---|---|
+| Room list | `listRooms()` (`src/lib/cabinets/rooms.ts`) — top-level dirs with a `.cabinet`, excluding `kind:home`. |
+| Default room | `resolveDefaultRoom()` + `data/.home/home.json`; returned by `/api/rooms`. |
+| Switcher UI | `src/components/sidebar/room-switcher.tsx` (+ `room-icons.tsx`, `room-edit-dialog.tsx`). |
+| Landing | `app-shell.tsx` redirects the bare home section into the default room; `handleWizardComplete` refreshes the rooms store post-onboarding. |
+| Tree scope | Rooted per active room (`tree-view.tsx` uses the room's subtree). |
+| Search scope | `server/search/*` filters pages/agents/tasks by the active room prefix; `cabinet` param threaded `palette → /api/search → daemon`. |
+| Roll-up cap | `overview.ts` returns no descendants for the home (`DATA_DIR`), so no parent can see another room. |
+| Per-room theme | `src/components/layout/room-theme-sync.tsx` (mounted in `layout.tsx`). |
+| Creation | `/api/cabinets/create` (room vs child by `parentPath`); `cabinet-scaffold.ts` (`kind` union incl. `room`/`home`). |
+| Onboarding | `/api/onboarding/setup` scaffolds the first room at `data/<slug>/`, writes the home marker, keeps global config at the container. |
+| Multi-window | `src/lib/cabinets/room-window.ts`; Electron `cabinet:open-window` IPC (`electron/main.cjs`) + `preload.cjs` `CabinetDesktop.openWindow`. |
+| Migration | `scripts/migrate-rooms-v3.mjs` (idempotent, guarded by `data/.home/home.json`). |
 
-### 5.5 Scoped search
-Keep the single root `data/.cabinet.db` (no per-cabinet DB split). Scope queries by the active
-cabinet's **path prefix** so Cmd+K finds only the current room's subtree. Lighter than splitting
-DBs and trivially reversible if we ever want cross-room search.
+## 5. Migration (existing installs)
 
-### 5.6 Window scope = `cabinetPath` (multi-window-ready)
-A window's scope is the `cabinetPath` it's viewing. The agent/task/conversation/job/skill layers
-already accept `cabinetPath` (e.g. the personas route reads `?cabinetPath=`), so a second window in
-a different cabinet largely *already* resolves correctly. To finish:
-- **Audit `DATA_DIR` sites that assume "root == the active scope"** without taking a `cabinetPath`,
-  and make them explicit. This is a *subset* of the 71 `DATA_DIR` references (many are legitimately
-  global: install metadata, ports, library, backups), not a wholesale re-root.
-- Daemon runs / PTY sessions / scheduled jobs are already created with their `cabinetPath`; keep that.
-- The actual "open a second window" command is the fast-follow (§8).
+Pre-v3 installs have a root cabinet at `data/` that parents the other rooms. `migrate-rooms-v3.mjs`:
+1. No-ops if `data/.home/home.json` already exists (idempotent).
+2. Git-checkpoints `data/` ("pre rooms-v3 migration").
+3. Moves the root cabinet's content/agents/chat/db/index + plain content folders into `data/<rootSlug>/`.
+4. Leaves existing top-level cabinets in place as sibling rooms; backfills distinct icons/colors.
+5. Keeps global config at `data/.agents/.config`; writes the home marker + `data/.home/home.json`.
 
-## 6. Migration & compatibility (minimal)
-- **No data move.** On first run after this ships: ensure the root `.cabinet` has a `room` block
-  (backfill default icon/theme if absent); register the root as the default room.
-- Optionally set the root room's display name to **"Studio"** (suggested default; user-renameable),
-  or keep its existing name. *(Open question §7.)*
-- Existing plain folders are untouched; they appear as content and can be **promoted** to rooms.
-- Fully backward compatible: a cabinet with no `room` block just uses defaults + the global theme.
+New installs skip all of this — onboarding creates the first room directly.
 
-## 7. Open questions (small)
-1. **Search.** Scope the shared DB by path prefix (proposed) vs. per-cabinet DB. → *Proposed: shared DB, scoped.*
-2. **Room definition.** Rooms = top-level **cabinets** only (proposed) vs. auto-treat every top-level dir as a room. → *Proposed: cabinets only, with one-click promote.*
-3. **Default room name.** Keep the root's existing name (renameable) vs. set it to **"Studio"** on first run. → *Proposed: set to "Studio", renameable.*
-4. **`.global-agents`.** Keep as opt-in cross-room (proposed, default empty) vs. retire. → *Proposed: keep.*
-5. **"Promote folder to room"** in v1 of this feature, or defer to the add/edit phase? → *Proposed: defer to Phase 4.*
+## 6. Phased plan — status
 
-## 8. Risks
-- **Hidden "root == active" assumptions.** Some `DATA_DIR` sites resolve content without a
-  `cabinetPath` and quietly mean "root." For multi-window correctness these must become explicit;
-  a path resolved with no scope should **fail loud**, not default to root (cross-room leak).
-- **Stale caches on switch.** Tree-store, agent stores, task board, theme must reload on switch;
-  audit any store keyed by absolute path or assuming a fixed root.
-- **Plain-folder vs cabinet clarity.** The switcher must make "this folder isn't a room yet —
-  promote it?" legible, or top-level folders feel missing.
-- **Theme flash on switch.** Apply theme before the scoped content paints (reuse ThemeInitializer ordering).
+- **Phase 1 — Switcher + room identity.** ✅ Shipped.
+- **Phase 2 — Per-room theme.** ✅ Shipped (apply on switch + load, global fallback).
+- **Phase 3 — Scoped search.** ✅ Shipped (per-room DB scope by prefix).
+- **Phase 4 — Add / Edit / Create (room vs sub-cabinet).** ✅ Shipped.
+- **Phase 5 — Multi-window.** ✅ Shipped (Electron native window + web `window.open`).
+- **Phase 6 — Onboarding.** ✅ Shipped (creates `data/<slug>/` rooms + home marker).
+- **Migration + structural isolation (the v3 core).** ✅ Shipped (`migrate-rooms-v3.mjs`).
 
-## 9. Phased plan
-- **Phase 1 — Switcher + room identity.** Restore the home button as the switcher; read/write the
-  `room` block (icon, name) in `.cabinet`; root = default room; switch sets `section.cabinetPath`
-  + reloads scoped stores. (Theme + search still global.)
-- **Phase 2 — Per-cabinet theme.** Store/apply `room.theme` on switch; fall back to global.
-- **Phase 3 — Scoped search.** Filter the root DB by the active cabinet's path prefix.
-- **Phase 4 — Add / Edit / Promote.** Create a new top-level cabinet (room) with name+icon+theme;
-  edit existing; promote a plain folder to a room.
-- **Phase 5 (fast-follow) — Multi-window.** Audit/close the "root == active" gaps; Electron
-  multi-window + a "New Window (cabinet…)" command; each window binds its own `cabinetPath`.
-- **Phase 6 (later, separate PRD) — Onboarding** room picker.
+## 7. Notes, risks & remaining
+
+- **Why a thin `kind:home` cabinet instead of deleting `data/.cabinet`.** ~114 call sites default an
+  absent `cabinetPath` to the root (`"."`). Rather than a risky full retire-`.` refactor, `data/`
+  keeps a thin, **content-less** `kind:home` cabinet so those sites resolve to a valid but empty
+  (leak-free) scope. Isolation still holds: the home has no content/agents and rolls up nothing.
+- **Cold-load theme flash (minor).** On a fresh load the global theme paints before the room theme,
+  which resolves after the async rooms fetch. Acceptable; not blocking.
+- **Verification.** The model, isolation, theme-on-switch, multi-window, and from-scratch onboarding
+  were all verified via Chrome DevTools + filesystem inspection (see `PROGRESS.md`, 2026-05-23).
+- **Truly remaining:** nothing blocking.
 
 ---
 
-*Out of scope here, tracked separately:* templated room-types onboarding picker; cross-room
-search; the second-window UX (scope lands now, window experience in Phase 5).
+*Superseded directions (v1 flatten, v2 lighter) are retained in §version-history for context. The
+shipped contract is this document + `docs/ROOMS_V3_TRUE_ISOLATION_PLAN.md`.*

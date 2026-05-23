@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listRooms, updateRoomMeta } from "@/lib/cabinets/rooms";
+import {
+  listRooms,
+  resolveDefaultRoom,
+  updateRoomMeta,
+} from "@/lib/cabinets/rooms";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const rooms = await listRooms();
-    return NextResponse.json({ rooms });
+    const [rooms, defaultRoom] = await Promise.all([
+      listRooms(),
+      resolveDefaultRoom(),
+    ]);
+    return NextResponse.json({ rooms, defaultRoom });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -23,6 +23,7 @@ import { TreeView } from "./tree-view";
 import { NewPageDialog } from "./new-page-dialog";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
 import { useAppStore } from "@/stores/app-store";
+import { useRoomsStore } from "@/stores/rooms-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import type { TreeNode } from "@/types";
@@ -66,6 +67,7 @@ export function Sidebar() {
   const section = useAppStore((s) => s.section);
   const setSection = useAppStore((s) => s.setSection);
   const sidebarDrawer = useAppStore((s) => s.sidebarDrawer);
+  const defaultRoom = useRoomsStore((s) => s.defaultRoom);
   const [refreshing, setRefreshing] = useState(false);
   const lastRefreshAtRef = useRef(0);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -247,7 +249,13 @@ export function Sidebar() {
                 <NewPageDialog />
               </div>
               <div className="min-w-0 flex-1">
-                <NewCabinetDialog />
+                {/* Rooms v3: the bottom button makes a cabinet *inside the
+                    current room* (a sibling of the room's pages), not a new
+                    top-level room. New rooms are created from the home
+                    switcher's "Add room". */}
+                <NewCabinetDialog
+                  parentPath={section.cabinetPath || defaultRoom || ""}
+                />
               </div>
             </>
           )}

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
+import yaml from "js-yaml";
 import matter from "gray-matter";
-import { DATA_DIR } from "@/lib/storage/path-utils";
+import { DATA_DIR, sanitizeFilename } from "@/lib/storage/path-utils";
 import { scaffoldCabinet } from "@/lib/storage/cabinet-scaffold";
+import { updateRoomMeta } from "@/lib/cabinets/rooms";
 import {
   getMandatoryAgentSlugs,
   resolveAgentLibraryDir,
@@ -11,9 +13,36 @@ import {
 import { ensureAgentScaffold } from "@/lib/agents/scaffold";
 import { getRoomConfig, type RoomType } from "@/lib/onboarding/rooms";
 
-const AGENTS_DIR = path.join(DATA_DIR, ".agents");
-const CONFIG_DIR = path.join(AGENTS_DIR, ".config");
-const CHAT_DIR = path.join(DATA_DIR, ".chat");
+// Global, app-level config stays at the data-dir root (the "home" container) so
+// onboarding detection (/api/agents/config) and provider/user config survive
+// regardless of which room you're in. Per-room things (cabinet, agents, chat)
+// live INSIDE the room (Rooms v3 — every room is an isolated sibling cabinet).
+const CONFIG_DIR = path.join(DATA_DIR, ".agents", ".config");
+
+// Map an onboarding room type to a switcher icon key + accent color so the
+// first room gets a real avatar (mirrors ROOM_ICON_KEYS / ROOM_COLORS).
+const ROOM_TYPE_ICON: Record<string, string> = {
+  office: "briefcase",
+  sales: "rocket",
+  hr: "family",
+  product: "building",
+  rnd: "studio",
+  study: "study",
+  lab: "lab",
+  "family-room": "family",
+  blank: "sparkles",
+};
+const ROOM_TYPE_COLOR: Record<string, string> = {
+  office: "rgb(99, 102, 241)",
+  sales: "rgb(236, 72, 153)",
+  hr: "rgb(34, 197, 94)",
+  product: "rgb(14, 165, 233)",
+  rnd: "rgb(168, 85, 247)",
+  study: "rgb(245, 158, 11)",
+  lab: "rgb(20, 184, 166)",
+  "family-room": "rgb(249, 115, 22)",
+  blank: "rgb(99, 102, 241)",
+};
 
 interface OnboardingRequest {
   homeName?: string;
@@ -54,6 +83,15 @@ export async function POST(req: NextRequest) {
     const homeName =
       body.homeName?.trim() || (answers.name ? `${answers.name}'s Home` : "Home");
 
+    // The first room is a real, isolated top-level cabinet: data/<roomSlug>/.
+    const roomSlug =
+      sanitizeFilename(workspaceName) ||
+      sanitizeFilename(roomConfig.label) ||
+      "home";
+    const roomDir = path.join(DATA_DIR, roomSlug);
+    const ROOM_AGENTS_DIR = path.join(roomDir, ".agents");
+    const ROOM_CHAT_DIR = path.join(roomDir, ".chat");
+
     // No pre-made team: create exactly the agents the user chose (which is
     // none during onboarding now — the user configures their first agent in the
     // wizard, created separately via /api/agents/personas). We no longer force
@@ -81,6 +119,7 @@ export async function POST(req: NextRequest) {
         id: `${roomType}-01`,
         type: roomType,
         name: roomConfig.label,
+        slug: roomSlug,
       },
       cabinet: {
         name: workspaceName,
@@ -114,16 +153,57 @@ export async function POST(req: NextRequest) {
       )
     );
 
-    // 2. Bootstrap root cabinet structure (cabinet protocol compliance)
-    await scaffoldCabinet(DATA_DIR, {
+    // 2. Scaffold the first ROOM as an isolated top-level cabinet (data/<slug>/),
+    //    not the data-dir root. The root stays a neutral "home" container.
+    await scaffoldCabinet(roomDir, {
       name: workspaceName,
-      kind: "root",
+      kind: "room",
       description: answers.description,
       body: answers.description,
       tags: [roomType],
       skipExisting: true,
       locale: body.locale,
     });
+    // Give the room an avatar (icon + accent color) so the switcher tile reads.
+    await updateRoomMeta(roomSlug, {
+      icon: ROOM_TYPE_ICON[roomType] ?? "briefcase",
+      color: ROOM_TYPE_COLOR[roomType] ?? "rgb(99, 102, 241)",
+    }).catch(() => {});
+
+    // Mark data/ as the neutral home container: a thin kind:home manifest keeps
+    // "." a valid (empty) scope, and home.json records the default room so the
+    // app lands inside it on launch.
+    await fs.writeFile(
+      path.join(DATA_DIR, ".cabinet"),
+      yaml.dump(
+        {
+          schemaVersion: 1,
+          id: "home",
+          name: homeName,
+          kind: "home",
+          version: "0.1.0",
+          description: "Cabinet home (room container).",
+          entry: "index.md",
+          room: { icon: "home" },
+        },
+        { lineWidth: -1 }
+      ),
+      "utf-8"
+    ).catch(() => {});
+    await fs.mkdir(path.join(DATA_DIR, ".home"), { recursive: true });
+    await fs.writeFile(
+      path.join(DATA_DIR, ".home", "home.json"),
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          kind: "home",
+          defaultRoom: roomSlug,
+          lastActiveRoom: roomSlug,
+        },
+        null,
+        2
+      )
+    );
 
     // 3. Mark onboarding as complete
     await fs.writeFile(
@@ -140,7 +220,7 @@ export async function POST(req: NextRequest) {
     // 4. Instantiate selected agents from library templates
     for (const slug of selectedAgents) {
       const templateDir = path.join(libraryDir, slug);
-      const targetDir = path.join(AGENTS_DIR, slug);
+      const targetDir = path.join(ROOM_AGENTS_DIR, slug);
 
       try {
         await fs.access(templateDir);
@@ -195,7 +275,7 @@ export async function POST(req: NextRequest) {
       const slug =
         agentName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") ||
         "agent";
-      const agentDir = path.join(AGENTS_DIR, slug);
+      const agentDir = path.join(ROOM_AGENTS_DIR, slug);
       let exists = false;
       try {
         await fs.access(agentDir);
@@ -229,8 +309,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Create chat channels from all agent channel references
-    await fs.mkdir(CHAT_DIR, { recursive: true });
+    // 5. Create chat channels from all agent channel references (inside the room)
+    await fs.mkdir(ROOM_CHAT_DIR, { recursive: true });
 
     // Collect all channels referenced by agents + map members
     const channelMembers = new Map<string, Set<string>>();
@@ -242,7 +322,7 @@ export async function POST(req: NextRequest) {
 
     for (const slug of selectedAgents) {
       try {
-        const personaPath = path.join(AGENTS_DIR, slug, "persona.md");
+        const personaPath = path.join(ROOM_AGENTS_DIR, slug, "persona.md");
         const raw = await fs.readFile(personaPath, "utf-8");
         const { data } = matter(raw);
         const agentChannels = (data.channels as string[]) || [];
@@ -295,13 +375,13 @@ export async function POST(req: NextRequest) {
     );
 
     await fs.writeFile(
-      path.join(CHAT_DIR, "channels.json"),
+      path.join(ROOM_CHAT_DIR, "channels.json"),
       JSON.stringify(channels, null, 2)
     );
 
     // Create channel directories
     for (const ch of channels) {
-      const chDir = path.join(CHAT_DIR, ch.slug);
+      const chDir = path.join(ROOM_CHAT_DIR, ch.slug);
       await fs.mkdir(chDir, { recursive: true });
       // Only create files if they don't exist (don't wipe existing messages)
       const msgPath = path.join(chDir, "messages.md");

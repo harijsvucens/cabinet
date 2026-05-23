@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { useTreeStore } from "@/stores/tree-store";
+import { useEditorStore } from "@/stores/editor-store";
 import { useRoomsStore, type RoomMetaClient } from "@/stores/rooms-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { RoomAvatar } from "@/lib/cabinets/room-icons";
@@ -50,6 +52,10 @@ export function RoomSwitcher() {
   const active = rooms.find((r) => r.path === activeTop) ?? rootRoom;
 
   function switchTo(room: RoomMetaClient) {
+    // Clear any page selected in the previous room so we don't carry a stale
+    // page path across the room boundary (rooms are isolated workspaces).
+    useTreeStore.getState().selectPage(null);
+    useEditorStore.getState().clear();
     if (room.isRoot) {
       setSection({ type: "home", cabinetPath: ROOT_CABINET_PATH });
     } else {

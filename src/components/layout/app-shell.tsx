@@ -117,6 +117,7 @@ import { useHashRoute } from "@/hooks/use-hash-route";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
+import { useRoomsStore } from "@/stores/rooms-store";
 
 const DISMISSED_UPDATE_STORAGE_KEY = "cabinet.dismissed-update-version";
 const WIZARD_DONE_STORAGE_KEY = "cabinet.wizard-done";
@@ -263,6 +264,23 @@ export function AppShell() {
   useEffect(() => {
     void loadProviders();
   }, [loadProviders]);
+
+  // Rooms v3: you are always inside a room. The data-dir root is a neutral
+  // "home" container with no content, so when the app lands on the bare home
+  // section we redirect into the default room (its scope drives the tree,
+  // agents, tasks and view). Deep links into a specific room/page already
+  // carry a cabinetPath and are left untouched.
+  const loadRooms = useRoomsStore((s) => s.load);
+  const defaultRoom = useRoomsStore((s) => s.defaultRoom);
+  useEffect(() => {
+    void loadRooms();
+  }, [loadRooms]);
+  useEffect(() => {
+    if (!defaultRoom) return;
+    if (section.type === "home" && !section.cabinetPath) {
+      setSection({ type: "cabinet", cabinetPath: defaultRoom });
+    }
+  }, [defaultRoom, section.type, section.cabinetPath, setSection]);
 
   // Dynamic document.title — reflects the current section and page.
   useEffect(() => {
@@ -574,7 +592,11 @@ export function AppShell() {
     }
     setSection({ type: "home" });
     loadTree();
-  }, [setSection, loadTree]);
+    // Onboarding just created the first room, but the rooms store was loaded
+    // earlier when none existed (defaultRoom: null). Force a refresh so the
+    // landing redirect picks up the new room and drops you inside it.
+    void loadRooms(true);
+  }, [setSection, loadTree, loadRooms]);
 
   function handleUpdateLater() {
     const latestVersion = update?.latest?.version;

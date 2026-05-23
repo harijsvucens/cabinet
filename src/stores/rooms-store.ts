@@ -11,6 +11,8 @@ export interface RoomMetaClient {
 
 interface RoomsState {
   rooms: RoomMetaClient[];
+  /** Slug of the room to open on launch (from data/.home/home.json). */
+  defaultRoom: string | null;
   loaded: boolean;
   loading: boolean;
   /** Fetch the room list. No-op if already loaded unless `force`. */
@@ -23,6 +25,7 @@ interface RoomsState {
  */
 export const useRoomsStore = create<RoomsState>((set, get) => ({
   rooms: [],
+  defaultRoom: null,
   loaded: false,
   loading: false,
   load: async (force = false) => {
@@ -33,8 +36,15 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     try {
       const res = await fetch("/api/rooms");
       if (!res.ok) return;
-      const data = (await res.json()) as { rooms?: RoomMetaClient[] };
-      set({ rooms: data.rooms ?? [], loaded: true });
+      const data = (await res.json()) as {
+        rooms?: RoomMetaClient[];
+        defaultRoom?: string | null;
+      };
+      set({
+        rooms: data.rooms ?? [],
+        defaultRoom: data.defaultRoom ?? null,
+        loaded: true,
+      });
     } catch {
       // ignore — a later interaction retries
     } finally {

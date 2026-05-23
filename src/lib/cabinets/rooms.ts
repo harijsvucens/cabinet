@@ -72,17 +72,19 @@ function roomFromManifest(
   return { path: cabinetPath, name, icon, theme, color, isRoot };
 }
 
-/** List every room: the root cabinet first, then each top-level directory. */
+/**
+ * List the rooms: every top-level directory that is a real cabinet (has a
+ * `.cabinet` manifest) and is not the home container itself. The data-dir root
+ * is the neutral "home" and is deliberately NOT a room — you are always inside
+ * one of these sibling rooms, and none of them is the parent of another. Plain
+ * folders without a `.cabinet` are content, not rooms.
+ */
 export async function listRooms(): Promise<RoomMeta[]> {
-  const rooms: RoomMeta[] = [
-    roomFromManifest(ROOT_CABINET_PATH, "", await readManifest(DATA_DIR), true),
-  ];
-
   let entries: import("fs").Dirent[] = [];
   try {
     entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
   } catch {
-    return rooms;
+    return [];
   }
 
   const dirNames = entries
@@ -90,12 +92,56 @@ export async function listRooms(): Promise<RoomMeta[]> {
     .map((entry) => entry.name)
     .sort((a, b) => a.localeCompare(b));
 
+  const rooms: RoomMeta[] = [];
   for (const dirName of dirNames) {
     const manifest = await readManifest(path.join(DATA_DIR, dirName));
+    if (!manifest) continue; // no manifest → content folder, not a room
+    if (manifest.kind === "home") continue; // never list the home container
     rooms.push(roomFromManifest(dirName, dirName, manifest, false));
   }
 
   return rooms;
+}
+
+export interface HomeConfig {
+  defaultRoom: string | null;
+  lastActiveRoom: string | null;
+}
+
+/** Read the home container config (`data/.home/home.json`). */
+export async function getHomeConfig(): Promise<HomeConfig> {
+  try {
+    const raw = await fs.readFile(
+      path.join(DATA_DIR, ".home", "home.json"),
+      "utf-8"
+    );
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      defaultRoom:
+        typeof parsed.defaultRoom === "string" ? parsed.defaultRoom : null,
+      lastActiveRoom:
+        typeof parsed.lastActiveRoom === "string"
+          ? parsed.lastActiveRoom
+          : null,
+    };
+  } catch {
+    return { defaultRoom: null, lastActiveRoom: null };
+  }
+}
+
+/**
+ * Resolve the room the app should open on launch: the configured defaultRoom if
+ * it still exists, else the first room alphabetically, else null (no rooms yet).
+ */
+export async function resolveDefaultRoom(): Promise<string | null> {
+  const [rooms, home] = await Promise.all([listRooms(), getHomeConfig()]);
+  if (rooms.length === 0) return null;
+  const paths = new Set(rooms.map((r) => r.path));
+  if (home.defaultRoom && paths.has(home.defaultRoom)) return home.defaultRoom;
+  if (home.lastActiveRoom && paths.has(home.lastActiveRoom)) {
+    return home.lastActiveRoom;
+  }
+  return rooms[0].path;
 }
 
 function resolveRoomDir(normalizedPath: string): string {
