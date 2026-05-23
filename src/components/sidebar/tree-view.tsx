@@ -408,8 +408,14 @@ export function TreeView() {
     );
   };
 
+  // A top-level room's only "parent" is the neutral home container (".").
+  // That isn't a navigable destination — you're always inside a room and
+  // switch between rooms via the home switcher — so never go up into it.
+  const parentIsHome =
+    !parentCabinet || parentCabinet.path === ROOT_CABINET_PATH;
+
   const openParentCabinet = () => {
-    if (!parentCabinet) return;
+    if (parentIsHome || !parentCabinet) return;
     openCabinetOverview(parentCabinet.path);
   };
 
@@ -417,8 +423,8 @@ export function TreeView() {
     <>
     <ScrollArea className="flex-1 min-h-0 [&_[data-slot=scroll-area-scrollbar]]:w-1.5 [&_[data-slot=scroll-area-scrollbar]]:py-0 [&_[data-slot=scroll-area-scrollbar]]:pe-0 [&_[data-slot=scroll-area-scrollbar]]:ps-0.5 [&_[data-slot=scroll-area-scrollbar]]:border-s-0">
       <div className="flex min-h-full flex-col py-1">
-        {/* ── Back to parent cabinet ────────────────────── */}
-        {activeCabinet && parentCabinet ? (
+        {/* ── Back to parent cabinet (never up into the home container) ── */}
+        {activeCabinet && parentCabinet && !parentIsHome ? (
           <button
             onClick={openParentCabinet}
             className="flex w-full items-center gap-1 px-3 pt-2 pb-1 text-left text-[9px] font-medium uppercase tracking-wider text-muted-foreground/60 transition-colors hover:text-foreground/80"

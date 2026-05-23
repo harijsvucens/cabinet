@@ -276,8 +276,15 @@ export function AppShell() {
     void loadRooms();
   }, [loadRooms]);
   useEffect(() => {
-    if (!defaultRoom) return;
-    if (section.type === "home" && !section.cabinetPath) {
+    if (!defaultRoom || defaultRoom === ROOT_CABINET_PATH) return;
+    const cp = section.cabinetPath;
+    // Snap into the default room whenever a section would otherwise show the
+    // neutral home container: the bare home screen, or any content view scoped
+    // to the data-dir root ("."). You're always inside a room, never the dir
+    // above it. (settings/help/registry carry no cabinetPath, so are untouched.)
+    const onHomeContainer =
+      (section.type === "home" && !cp) || cp === ROOT_CABINET_PATH;
+    if (onHomeContainer) {
       setSection({ type: "cabinet", cabinetPath: defaultRoom });
     }
   }, [defaultRoom, section.type, section.cabinetPath, setSection]);
