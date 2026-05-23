@@ -133,6 +133,22 @@ export async function POST(req: NextRequest) {
       JSON.stringify(workspaceConfig, null, 2)
     );
 
+    // Persist the user's profile name so the greeting and the starter-task
+    // placeholder use what they typed in onboarding. Without this, an early
+    // profile read during the wizard seeds user.json from the OS username
+    // (os.userInfo().username) and that stale value sticks afterwards.
+    const profileName = answers.name?.trim() || "";
+    if (profileName) {
+      await fs.writeFile(
+        path.join(CONFIG_DIR, "user.json"),
+        JSON.stringify(
+          { name: profileName, displayName: "", role: "", avatar: "" },
+          null,
+          2
+        )
+      );
+    }
+
     // Legacy company.json — keeps old code paths working (config route fallback, etc.)
     await fs.writeFile(
       path.join(CONFIG_DIR, "company.json"),

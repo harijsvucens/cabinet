@@ -72,7 +72,15 @@ export async function readUserProfile(): Promise<UserProfile> {
   }
 
   const seeded = await seedProfileFromOnboarding();
-  await writeJson(USER_FILE, seeded);
+  // Only persist when the name came from onboarding (the workspace home name).
+  // A pure OS-username fallback (e.g. a profile read during the wizard, before
+  // onboarding has written workspace.json) must stay transient — otherwise it
+  // sticks and overrides the name the user actually types. (Bug: the starter
+  // task showed "Hi, I'm <os-username>!" instead of the onboarding name.)
+  const workspace = await readJson<WorkspaceJsonV2>(WORKSPACE_FILE);
+  if (workspace?.home?.name?.trim()) {
+    await writeJson(USER_FILE, seeded);
+  }
   return seeded;
 }
 
