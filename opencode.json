@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "command": {
+    "build": {
+      "template": "Run npm run build in the cabinet project",
+      "description": "Build the Cabinet Next.js app"
+    },
+    "dev": {
+      "template": "Start Cabinet dev servers (npm run dev:all)",
+      "description": "Start Cabinet dev servers"
+    },
+    "test": {
+      "template": "cd /home/likkmrl/cabinet && npm test",
+      "description": "Run Cabinet tests"
+    },
+    "lint": {
+      "template": "cd /home/likkmrl/cabinet && npm run lint",
+      "description": "Run linter"
+    },
+    "ci": {
+      "template": "cd /home/likkmrl/cabinet && npm ci && npm run lint && npm run build && npm test",
+      "description": "Run full CI pipeline"
+    }
+  },
+  "instructions": ["CLAUDE.md"]
+}
