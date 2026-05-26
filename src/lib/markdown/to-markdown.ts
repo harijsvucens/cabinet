@@ -16,6 +16,57 @@ const turndown = new TurndownService({
 // Add GFM support (tables, strikethrough, task lists)
 turndown.use(gfm);
 
+// Tiptap's TaskItem renders the checkbox inside a <label> wrapper:
+//   <li data-checked="false" data-type="taskItem">
+//     <label><input type="checkbox"><span></span></label>
+//     <div><p>Task</p></div>
+//   </li>
+// Note: attribute order varies — data-checked may come before data-type
+// depending on Tiptap's mergeAttributes output.
+//
+// turndown-plugin-gfm's taskListItems rule expects the checkbox to be a
+// direct child of <li>, so it silently drops the checkbox state.
+// We pre-process Tiptap's task item HTML into standard GFM format:
+//   <li class="task-list-item"><input type="checkbox"> text</li>
+function normalizeTiptapHtml(html: string): string {
+  // Convert Tiptap's task list wrapper to GFM's expected class
+  html = html.replace(
+    /<ul[^>]*\bdata-type="taskList"[^>]*>/g,
+    '<ul class="contains-task-list">'
+  );
+
+  // Convert Tiptap's task item structure to standard GFM format.
+  // Tiptap renders: <li data-checked="false" data-type="taskItem"><label><input type="checkbox"><span></span></label><div><p>text</p></div></li>
+  // GFM expects:    <li class="task-list-item"><input type="checkbox"> text</li>
+  //
+  // Match the <li> tag broadly by looking for data-type="taskItem" anywhere
+  // in its attributes (data-checked may come before or after). Extract the
+  // checked state via a secondary regex on the full match in the callback.
+  html = html.replace(
+    /<li\b[^>]*\bdata-type="taskItem"[^>]*>\s*<label>\s*<input[^>]*>\s*<span>\s*<\/span>\s*<\/label>\s*<div>/g,
+    (match) => {
+      const checked = match.match(/\bdata-checked="(true|false)"/)?.[1] ?? "false";
+      return `<li class="task-list-item"><input type="checkbox"${checked === "true" ? " checked" : ""}>`;
+    }
+  );
+
+  // Strip the closing </div> from Tiptap's content wrapper
+  html = html.replace(/<\/div>\s*<\/li>/g, "</li>");
+
+  // Unwrap <p> from normalized task item content so Turndown produces
+  // clean markdown without extra newlines from block elements
+  html = html.replace(
+    /(<li class="task-list-item"><input[^>]*?>)<p>(.*?)<\/p><\/li>/g,
+    "$1 $2</li>"
+  );
+
+  return html;
+}
+
+export function htmlToMarkdown(html: string): string {
+  return turndown.turndown(normalizeTiptapHtml(html));
+}
+
 // Preserve line breaks in code blocks
 turndown.addRule("codeBlock", {
   filter: (node) => {
@@ -230,7 +281,3 @@ turndown.addRule("alignedBlock", {
     return `\n<${tag} style="${style}">${content}</${tag}>\n`;
   },
 });
-
-export function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html);
-}
