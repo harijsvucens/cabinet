@@ -14,6 +14,7 @@ export interface PageHit {
   path: string;
   icon?: string;
   tags: string[];
+  score?: number;
   modified?: string;
   matchCount: number;
   matches: SearchMatch[];

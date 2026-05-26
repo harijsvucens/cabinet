@@ -132,7 +132,7 @@ export function NotificationToasts() {
       if (!detail?.length) return;
       const newToasts = dedupeConversationNotifications(detail).map((n) => ({
         ...n,
-        _key: `${crypto.randomUUID()}-${n.id}`,
+        _key: `${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}-${n.id}`,
       }));
       setToasts((prev) => dedupeConversationNotifications([...prev, ...newToasts]));
 

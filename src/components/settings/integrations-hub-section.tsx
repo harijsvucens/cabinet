@@ -72,7 +72,7 @@ interface CatalogItem {
   credentials: Credential[];
   transport: "http" | "stdio";
   verifiedTier: Tier;
-  authBackend: "cli-pkce" | "user-app" | "token" | "cabinet-broker";
+  authBackend: "cli-pkce" | "user-app" | "token" | "cabinet-broker" | "none";
   supportedProviderIds: string[];
   connectedProviderIds: string[];
   credentialStatus: Record<string, { hasValue: boolean; lastFour: string }>;

@@ -8,6 +8,7 @@ export const ADAPTER_RUNTIME_PATH = [
   `${process.env.HOME || ""}/.local/bin`,
   "/usr/local/bin",
   "/opt/homebrew/bin",
+  `${process.env.HOME || ""}/.npm-global/bin`,
   ...(nvmBin ? [nvmBin] : []),
   process.env.PATH || "",
 ].filter(Boolean).join(":");

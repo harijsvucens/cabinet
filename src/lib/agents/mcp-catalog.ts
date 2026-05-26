@@ -29,7 +29,7 @@
 
 export type TrustTier = "official" | "registry" | "community";
 
-export type AuthBackend = "cli-pkce" | "user-app" | "token" | "cabinet-broker";
+export type AuthBackend = "cli-pkce" | "user-app" | "token" | "cabinet-broker" | "none";
 
 export type McpTransport = "http" | "stdio";
 
@@ -246,7 +246,45 @@ const DISCORD: CatalogEntry = {
   ],
 };
 
-export const MCP_CATALOG: CatalogEntry[] = [SLACK, GOOGLE_WORKSPACE, DISCORD];
+const QMD: CatalogEntry = {
+  id: "qmd",
+  label: "QMD Search",
+  blurb: "Semantic + keyword search across your local knowledge base with LLM reranking.",
+  iconSlug: "search",
+  bgImage: "/integrations/qmd-bg.webp",
+  logo: "/integrations/qmd-logo.png",
+  sourceUrl: "https://github.com/tobi/qmd",
+  trustTier: "community",
+  authBackend: "none",
+  transport: "stdio",
+  mcpServerName: "cabinet-qmd",
+  command: "qmd",
+  args: ["mcp"],
+  credentials: [],
+  actions: [
+    "Hybrid search (BM25 + vector + LLM reranking) across indexed documents",
+    "Retrieve a single document by path or docid with fuzzy-match suggestions",
+    "Batch retrieve documents by glob pattern or docid list",
+    "Check index health and collection status",
+  ],
+  setupSteps: [
+    {
+      title: "Install QMD",
+      body: "Run `npm install -g @tobilu/qmd` to install the on-device search engine.",
+      href: "https://github.com/tobi/qmd",
+    },
+    {
+      title: "Index your knowledge base",
+      body: "Run `qmd collection add ~/cabinet/data --name cabinet --mask \"**/*.md\"` then `qmd embed` to generate vector embeddings for semantic search.",
+    },
+    {
+      title: "Verify it works",
+      body: "Run `qmd search \"getting started\" -n 3` to confirm your index is live.",
+    },
+  ],
+};
+
+export const MCP_CATALOG: CatalogEntry[] = [SLACK, GOOGLE_WORKSPACE, DISCORD, QMD];
 
 export function getCatalogEntry(id: string): CatalogEntry | undefined {
   return MCP_CATALOG.find((e) => e.id === id);

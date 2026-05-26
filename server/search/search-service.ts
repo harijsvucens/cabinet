@@ -167,7 +167,7 @@ export function runSearch(
   }
 
   if (scope === "all" || scope === "pages") {
-    const raw = sources.pages.search(trimmed, Math.max(limit * 2, 80));
+    const raw = !Array.isArray(sources.pages) ? sources.pages.search(trimmed, Math.max(limit * 2, 80)) : [];
     const hits: Array<{ hit: PageHit; score: number }> = [];
     for (const { id, fields } of raw) {
       const record = sources.pages.get(id);

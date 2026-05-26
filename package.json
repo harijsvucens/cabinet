@@ -133,5 +133,8 @@
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "@tobilu/qmd": "^2.5.2"
   }
 }

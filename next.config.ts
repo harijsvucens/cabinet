@@ -46,6 +46,14 @@ const nextConfig: NextConfig = {
       "**/.DS_Store",
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/search-qmd/:path*",
+        destination: "/api/search-qmd/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

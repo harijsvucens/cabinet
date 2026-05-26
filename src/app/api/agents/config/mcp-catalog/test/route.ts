@@ -68,10 +68,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     id?: unknown;
     credentials?: Record<string, string>;
   };
-  if (typeof id !== "string" || !getCatalogEntry(id)) {
+  if (typeof id !== "string") {
+    return NextResponse.json({ error: "Unknown integration id" }, { status: 400 });
+  }
+  const entry = getCatalogEntry(id);
+  if (!entry) {
     return NextResponse.json({ error: "Unknown integration id" }, { status: 400 });
   }
   const creds = credentials && typeof credentials === "object" ? credentials : {};
+
+  // No-auth backends (e.g. QMD) don't need credential testing
+  if (entry.authBackend === "none") {
+    return NextResponse.json({ valid: true, detail: "No authentication required." });
+  }
 
   if (id === "discord") {
     const token = creds.DISCORD_TOKEN?.trim();

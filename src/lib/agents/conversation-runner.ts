@@ -273,6 +273,38 @@ function buildKnowledgeBaseScopeInstructions(
   ];
 }
 
+function buildSearchInstructions(): string[] {
+  return [
+    "## Knowledge Base Semantic Search",
+    "",
+    "Cabinet provides a hybrid semantic search API you can call to find relevant",
+    "KB content. This is NOT grep — it understands meaning, synonyms, and",
+    "paraphrased queries. Use it when you need to find pages by topic or concept",
+    "rather than exact strings.",
+    "",
+    "API (returns markdown formatted for you to read):",
+    "  curl -s \"http://127.0.0.1:4000/api/kb/search?q=YOUR_QUERY&format=markdown\"",
+    "",
+    "CLI (same, if you're in the data dir):",
+    "  node .agents/bin/search.cjs \"your query\"",
+    "",
+    "Parameters:",
+    "  mode=hybrid|semantic|keyword  — hybrid (default) merges both",
+    "  format=markdown|json          — markdown is best for reading results",
+    "  topK=10                       — max results (1-50)",
+    "  rerank=true|false             — LLM re-ranking for precision (adds ~500ms)",
+    "",
+    "When to use:",
+    "- Before answering questions about Cabinet's content",
+    "- When the user asks to \"find something about X\"",
+    "- When you're unsure which file holds the answer (don't grep blindly)",
+    "- When exploring a topic to discover related pages",
+    "",
+    "Use your Read/Grep/Glob tools for exact string matching and file-level",
+    "operations. The search API is for semantic discovery.",
+  ];
+}
+
 function buildDiagramOutputInstructions(): string[] {
   return [
     "If you create Mermaid diagrams, make sure the source is renderable.",
@@ -434,6 +466,8 @@ export async function buildManualConversationPrompt(input: {
     "",
     ...buildKnowledgeBaseScopeInstructions(baseCwd, input.cabinetPath),
     "Reflect useful outputs in KB files, not only in terminal text.",
+    "",
+    ...buildSearchInstructions(),
     ...buildDiagramOutputInstructions(),
     await buildCabinetEpilogueInstructions({
       canDispatch: resolvePersonaCanDispatch(persona),
@@ -521,6 +555,8 @@ export async function buildEditorConversationPrompt(input: {
     "Do not assume the target is markdown. Follow the actual file type and Cabinet structure when choosing what to edit.",
     ...buildKnowledgeBaseScopeInstructions(baseCwd, input.cabinetPath),
     "Edit KB files directly and reflect useful outputs in the KB, not only in terminal text.",
+    "",
+    ...buildSearchInstructions(),
     ...buildDiagramOutputInstructions(),
     await buildCabinetEpilogueInstructions({
       canDispatch: resolvePersonaCanDispatch(persona),

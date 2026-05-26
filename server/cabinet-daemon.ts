@@ -81,6 +81,8 @@ import { runSearch } from "./search/search-service";
 import { startWatcher } from "./search/watcher";
 import { loadAgentDocs, loadTaskDocs } from "./search/index-agents-tasks";
 import type { SearchScope } from "./search/types";
+import { searchQmd, initQmdStore, getQmdStore, getQmdStatus, closeQmdStore, updateQmdIndex, embedQmd } from "./search/qmd-search";
+import { normalizeQmdResults } from "./search/qmd-normalize";
 import {
   clearSessionId,
   emit as emitTelemetry,
@@ -231,6 +233,7 @@ async function guardAgainstBigTree(): Promise<void> {
 
 const searchIndex = new SearchIndex();
 let searchIndexReady = false;
+let qmdIsEmbedding = false;
 
 async function bootstrapSearchIndex(): Promise<void> {
   const t0 = Date.now();
@@ -259,6 +262,8 @@ async function bootstrapSearchIndex(): Promise<void> {
 }
 
 function startSearchWatcher(): void {
+  let qmdDebounceTimer: NodeJS.Timeout | null = null;
+
   startWatcher(searchIndex, {
     onIndexed: ({ path: p, kind }) => {
       broadcast("search", {
@@ -267,6 +272,21 @@ function startSearchWatcher(): void {
         kind,
         pages: searchIndex.size(),
       });
+
+      // Debounced QMD re-index (30s after last change)
+      if (qmdDebounceTimer) clearTimeout(qmdDebounceTimer);
+      qmdDebounceTimer = setTimeout(async () => {
+        if (qmdIsEmbedding) return;
+        qmdIsEmbedding = true;
+        try {
+          const result = await updateQmdIndex({ collections: ["cabinet"] });
+          if (!("error" in result) && result.needsEmbedding > 0) {
+            await embedQmd({ collection: "cabinet" });
+          }
+        } finally {
+          qmdIsEmbedding = false;
+        }
+      }, 30_000);
     },
   });
 }
@@ -462,11 +482,17 @@ function emitSessionOutput(
   }
 }
 
+function baseConversationId(sessionId: string): string {
+  const idx = sessionId.indexOf("::t");
+  return idx === -1 ? sessionId : sessionId.slice(0, idx);
+}
+
 async function finalizeSessionConversation(session: ActiveSession): Promise<void> {
-  const meta = await readConversationMeta(session.id);
+  const conversationId = baseConversationId(session.id);
+  const meta = await readConversationMeta(conversationId);
   if (!meta) {
     console.warn(
-      `[cabinet-daemon] cannot finalize session ${session.id}: meta.json missing/unreadable — run result not persisted`
+      `[cabinet-daemon] cannot finalize session ${session.id}: meta.json missing/unreadable (looked up ${conversationId}) — run result not persisted`
     );
     return;
   }
@@ -494,7 +520,7 @@ async function finalizeSessionConversation(session: ActiveSession): Promise<void
       ? distillPtyOutput(plain, session.exitCode, session.providerId)
       : plain;
 
-  await finalizeConversation(session.id, {
+  await finalizeConversation(conversationId, {
     status: session.resolvedStatus || (session.exitCode === 0 ? "completed" : "failed"),
     exitCode: session.resolvedStatus === "completed" ? 0 : session.exitCode,
     output: summaryOutput,
@@ -1745,6 +1771,7 @@ const server = http.createServer(async (req, res) => {
 
   // Health check
   if (url.pathname === "/health") {
+    const qmdStatus = getQmdStore() ? { available: true } : { available: false };
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
       JSON.stringify({
@@ -1753,6 +1780,7 @@ const server = http.createServer(async (req, res) => {
         scheduledJobs: scheduledJobs.size,
         scheduledHeartbeats: scheduledHeartbeats.size,
         subscribers: subscribers.length,
+        qmd: qmdStatus,
       })
     );
     return;
@@ -1832,6 +1860,117 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: message }));
     }
+    return;
+  }
+
+  // QMD search endpoint — returns normalized pages from QMD + agents/tasks from FlexSearch
+  if (url.pathname === "/search-qmd" && req.method === "GET") {
+    const q = (url.searchParams.get("q") ?? "").trim();
+    const collection = url.searchParams.get("collection") || "cabinet";
+    const limit = parseInt(url.searchParams.get("limit") || "10", 10);
+    const minScore = parseFloat(url.searchParams.get("minScore") || "0");
+    const explain = url.searchParams.get("explain") === "true";
+    const rerank = url.searchParams.get("rerank") === "true";
+    const cabinet = url.searchParams.get("cabinet") || undefined;
+    const intent = url.searchParams.get("intent") || undefined;
+
+    if (!q) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing query parameter 'q'" }));
+      return;
+    }
+
+    const startTs = Date.now();
+    console.log(`[qmd-daemon] /search-qmd: query="${q.slice(0, 80)}" rerank=${rerank} cabinet=${cabinet ?? "(none)"}`);
+
+    try {
+      const qmdResults = await searchQmd({ query: q, collection, limit, minScore, explain, rerank, intent });
+
+      // Get agents + tasks from FlexSearch (common to both paths)
+      const [agents, tasks] = await Promise.all([
+        loadAgentDocs(),
+        loadTaskDocs(),
+      ]);
+
+      if ("error" in qmdResults) {
+        console.log(`[qmd-daemon] QMD returned error, falling back to FlexSearch (${Date.now() - startTs}ms)`);
+        // QMD not available — fall back to full FlexSearch
+        const flexResponse = runSearch(
+          { pages: searchIndex, agents: () => agents, tasks: () => tasks, indexReady: () => searchIndexReady },
+          q, "all", limit, cabinet
+        );
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ available: false, mode: "flexsearch-fallback", ...flexResponse }));
+        return;
+      }
+
+      // Normalize QMD page results
+      const { pages } = normalizeQmdResults(qmdResults, q, cabinet);
+      console.log(`[qmd-daemon] QMD returned ${qmdResults.length} raw results, ${pages.length} pages after normalize (${Date.now() - startTs}ms)`);
+      if (pages.length === 0 && qmdResults.length > 0) {
+        console.log(`[qmd-daemon] WARNING: all ${qmdResults.length} QMD results filtered out by roomPrefix="${cabinet}"`);
+        console.log(`[qmd-daemon] Sample QMD file paths:`, qmdResults.slice(0, 3).map(r => r.file).join(", "));
+      }
+
+      // Search agents + tasks from FlexSearch (drop pages — QMD handles those)
+      const flexResponse = runSearch(
+        { pages: searchIndex, agents: () => agents, tasks: () => tasks, indexReady: () => searchIndexReady },
+        q, "all", limit, cabinet
+      );
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        available: true,
+        mode: "qmd",
+        query: q,
+        scope: "all",
+        pages,
+        agents: flexResponse.agents,
+        tasks: flexResponse.tasks,
+        tookMs: flexResponse.tookMs,
+        indexReady: true,
+      }));
+    } catch (err) {
+      console.error(`[qmd-daemon] /search-qmd UNHANDLED ERROR (${Date.now() - startTs}ms):`, err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: String(err) }));
+    }
+    return;
+  }
+
+  // QMD status endpoint
+  if (url.pathname === "/search-qmd/status" && req.method === "GET") {
+    const status = await getQmdStatus();
+    if ("error" in status) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ available: false }));
+    } else {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ available: true, ...status }));
+    }
+    return;
+  }
+
+  // QMD reindex endpoint
+  if (url.pathname === "/search-qmd/reindex" && req.method === "POST") {
+    if (qmdIsEmbedding) {
+      res.writeHead(409, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Re-index already in progress" }));
+      return;
+    }
+    qmdIsEmbedding = true;
+    (async () => {
+      try {
+        const result = await updateQmdIndex({ collections: ["cabinet"] });
+        if (!("error" in result) && result.needsEmbedding > 0) {
+          await embedQmd({ collection: "cabinet" });
+        }
+      } finally {
+        qmdIsEmbedding = false;
+      }
+    })();
+    res.writeHead(202, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "started" }));
     return;
   }
 
@@ -1923,6 +2062,7 @@ server.listen(PORT, () => {
   console.log(`  Health check: http://localhost:${PORT}/health`);
   console.log(`  Trigger endpoint: POST http://localhost:${PORT}/trigger`);
   console.log(`  Search endpoint: GET http://localhost:${PORT}/search`);
+  console.log(`  QMD search endpoint: GET http://localhost:${PORT}/search-qmd`);
   console.log(`  Default provider: ${resolveProviderId()}`);
   console.log(`  Working directory: ${DATA_DIR}`);
   const watcherBackend = probeWatcherBackend();
@@ -1956,6 +2096,26 @@ server.listen(PORT, () => {
   void guardAgainstBigTree().then(() =>
     bootstrapSearchIndex().then(() => startSearchWatcher())
   );
+  void initQmdStore().then(async (ready) => {
+    if (!ready) {
+      console.log(`  QMD search: not available`);
+      return;
+    }
+    const status = await getQmdStatus();
+    if ("error" in status) {
+      console.log(`  QMD search: available (status error: ${status.error})`);
+      return;
+    }
+    const lines: string[] = [`  QMD search: ready`];
+    for (const c of status.collections) {
+      lines.push(`    ${c.name}: ${c.documents} docs, path=${c.pattern || "—"}`);
+    }
+    lines.push(`    total: ${status.totalDocuments} docs, vector-index=${status.hasVectorIndex ? "yes" : "no"}`);
+    if (status.needsEmbedding > 0) {
+      lines.push(`    needs-embedding: ${status.needsEmbedding} chunks`);
+    }
+    console.log(lines.join("\n"));
+  });
   void (async () => {
     try {
       const { loadExternalAdapters } = await import(
@@ -1989,6 +2149,7 @@ function shutdown(): void {
     } catch {}
   }
   void scheduleWatcher.close();
+  void closeQmdStore();
   closeDb();
   server.close();
   process.exit(0);

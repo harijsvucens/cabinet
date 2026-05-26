@@ -26,6 +26,7 @@ import {
   type PageHit,
   type SearchResponse,
   type SearchScope,
+  type SearchMode,
   type TaskHit,
   useSearchStore,
 } from "@/stores/search-store";
@@ -208,6 +209,8 @@ export function SearchPalette() {
   const open = useSearchStore((s) => s.open);
   const query = useSearchStore((s) => s.query);
   const scope = useSearchStore((s) => s.scope);
+  const mode = useSearchStore((s) => s.mode);
+  const qmdAvailable = useSearchStore((s) => s.qmdAvailable);
   const loading = useSearchStore((s) => s.loading);
   const results = useSearchStore((s) => s.results);
   const serviceError = useSearchStore((s) => s.serviceError);
@@ -221,6 +224,9 @@ export function SearchPalette() {
   const closePalette = useSearchStore((s) => s.closePalette);
   const setQuery = useSearchStore((s) => s.setQuery);
   const setScope = useSearchStore((s) => s.setScope);
+  const setMode = useSearchStore((s) => s.setMode);
+  const setQmdAvailable = useSearchStore((s) => s.setQmdAvailable);
+  const checkQmdAvailability = useSearchStore((s) => s.checkQmdAvailability);
   const setResults = useSearchStore((s) => s.setResults);
   const setLoading = useSearchStore((s) => s.setLoading);
   const setServiceError = useSearchStore((s) => s.setServiceError);
@@ -262,7 +268,7 @@ export function SearchPalette() {
   const selected = useMemo(() => findEntry(flat, selectedResultId), [flat, selectedResultId]);
 
   const performSearch = useCallback(
-    async (q: string, s: SearchScope) => {
+    async (q: string, s: SearchScope, m: SearchMode) => {
       if (abortRef.current) abortRef.current.abort();
       if (!q.trim()) {
         setResults(null);
@@ -272,14 +278,21 @@ export function SearchPalette() {
       const controller = new AbortController();
       abortRef.current = controller;
       setLoading(true);
+
+      const isQmd = m === "semantic" || m === "deep";
+      const endpoint = isQmd ? "/api/search-qmd" : "/api/search";
       try {
         const params = new URLSearchParams({
           q,
-          scope: s,
           limit: "50",
         });
         if (activeRoom) params.set("cabinet", activeRoom);
-        const res = await fetch(`/api/search?${params}`, {
+        if (isQmd) {
+          params.set("rerank", m === "deep" ? "true" : "false");
+        } else {
+          params.set("scope", s);
+        }
+        const res = await fetch(`${endpoint}?${params}`, {
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -288,9 +301,14 @@ export function SearchPalette() {
           setResults(null);
           return;
         }
-        const data = (await res.json()) as SearchResponse;
+        const data = (await res.json()) as SearchResponse & { mode?: string; available?: boolean };
+        if (isQmd && data.available === false) {
+          setQmdAvailable(false);
+        } else if (isQmd) {
+          setQmdAvailable(true);
+        }
         setServiceError(null);
-        setResults(data);
+        setResults(data as SearchResponse);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         setServiceError(err instanceof Error ? err.message : "Search failed");
@@ -299,7 +317,7 @@ export function SearchPalette() {
         setLoading(false);
       }
     },
-    [setResults, setLoading, setServiceError, activeRoom]
+    [setResults, setLoading, setServiceError, setQmdAvailable, activeRoom]
   );
 
   useEffect(() => {
@@ -311,18 +329,24 @@ export function SearchPalette() {
       return;
     }
     debounceRef.current = setTimeout(() => {
-      void performSearch(query, scope);
+      void performSearch(query, scope, mode);
     }, DEBOUNCE_MS);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, scope, performSearch, isCommandMode, setLoading, setResults]);
+  }, [query, scope, mode, performSearch, isCommandMode, setLoading, setResults]);
 
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 40);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (mode === "semantic" || mode === "deep") {
+      void checkQmdAvailability();
+    }
+  }, [mode, open, checkQmdAvailability]);
 
   const openEntry = useCallback(
     (entry: FlatEntry) => {
@@ -521,8 +545,25 @@ export function SearchPalette() {
                 Indexing…
               </span>
             )}
+            <div className="ms-auto flex items-center gap-0.5 rounded-md bg-muted/60 p-0.5">
+              {(["keyword", "semantic", "deep"] as SearchMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-[10px] transition-colors",
+                    mode === m
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={m === "keyword" ? "FlexSearch (instant)" : m === "semantic" ? "QMD hybrid (<500ms)" : "QMD + reranking (2-5s)"}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
             {results?.tookMs != null && query && hasAnyResults && (
-              <span className="ms-auto text-[11px] text-muted-foreground tabular-nums">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
                 {results.tookMs} ms
               </span>
             )}
@@ -718,6 +759,11 @@ export function SearchPalette() {
                 <kbd className="rounded border border-border px-1 py-[1px]">esc</kbd> close
               </span>
             </div>
+            {(mode === "semantic" || mode === "deep") && (
+              <span className={cn("tabular-nums", !qmdAvailable && "text-destructive/70")}>
+                {qmdAvailable ? "QMD" : "QMD unavailable"}
+              </span>
+            )}
           </div>
         </Dialog.Popup>
       </Dialog.Portal>

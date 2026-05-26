@@ -36,6 +36,7 @@ import {
   ArrowRight,
   CheckCircle2,
   ShieldAlert,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ import {
   submitWaitlistEmail,
 } from "@/lib/telemetry/waitlist-client";
 import { useLocale } from "@/i18n/use-locale";
+import { useSearchStore, type SearchMode } from "@/stores/search-store";
 import {
   REQUESTABLE_LOCALES,
   SUPPORTED_LOCALES,
@@ -132,7 +134,7 @@ interface IntegrationConfig {
   };
 }
 
-type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "notifications" | "appearance" | "updates" | "about";
+type Tab = "profile" | "providers" | "skills" | "storage" | "integrations" | "search" | "notifications" | "appearance" | "updates" | "about";
 
 function TerminalCommand({ command }: { command: string }) {
   const { t } = useLocale();
@@ -418,7 +420,7 @@ export function SettingsPage() {
   const [dataDirBrowsing, setDataDirBrowsing] = useState(false);
   const [dataDirSaving, setDataDirSaving] = useState(false);
   const [dataDirRestartNeeded, setDataDirRestartNeeded] = useState(false);
-  const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "integrations", "notifications", "appearance", "updates", "about"];
+  const VALID_TABS: Tab[] = ["profile", "providers", "skills", "storage", "integrations", "search", "notifications", "appearance", "updates", "about"];
   const initialTab = (() => {
     const slug = useAppStore.getState().section.slug as Tab | undefined;
     return slug && VALID_TABS.includes(slug) ? slug : "profile";
@@ -786,6 +788,7 @@ export function SettingsPage() {
         { id: "skills", label: t("settings:tabs.skills"), icon: <Sparkles className="h-3.5 w-3.5" /> },
         { id: "storage", label: t("settings:tabs.storage"), icon: <HardDrive className="h-3.5 w-3.5" /> },
         { id: "integrations", label: t("settings:tabs.integrations"), icon: <Plug className="h-3.5 w-3.5" /> },
+        { id: "search", label: t("settings:tabs.search"), icon: <Search className="h-3.5 w-3.5" /> },
       ],
     },
     {
@@ -1696,6 +1699,9 @@ export function SettingsPage() {
               <CliMcpSection />
             </div>
           )}
+
+          {/* Search Tab */}
+          {tab === "search" && <SearchSettings />}
 
           {/* Notifications Tab */}
           {tab === "notifications" && (
@@ -2632,6 +2638,131 @@ function ProfileTab() {
             {t("settings:profile.saved")}
           </span>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SearchSettings() {
+  const { t } = useLocale();
+  const mode = useSearchStore((s) => s.mode);
+  const setMode = useSearchStore((s) => s.setMode);
+  const [qmdStatus, setQmdStatus] = useState<{ available: boolean; collections?: number; documents?: number; lastIndexed?: string } | null>(null);
+  const [reindexing, setReindexing] = useState(false);
+
+  const refreshStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/search-qmd/status");
+      if (res.ok) {
+        const data = await res.json();
+        setQmdStatus(data);
+      }
+    } catch {
+      setQmdStatus({ available: false });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  const handleReindex = useCallback(async () => {
+    setReindexing(true);
+    try {
+      await fetch("/api/search-qmd/reindex", { method: "POST" });
+      setTimeout(() => { void refreshStatus(); }, 2000);
+    } catch {
+      // silent
+    } finally {
+      setReindexing(false);
+    }
+  }, [refreshStatus]);
+
+  const MODES: { id: SearchMode; label: string; desc: string }[] = [
+    { id: "keyword", label: "Keyword", desc: "FlexSearch (instant, no models)" },
+    { id: "semantic", label: "Semantic", desc: "QMD hybrid — BM25 + vector (<500ms)" },
+    { id: "deep", label: "Deep", desc: "QMD hybrid + LLM reranking (2-5s)" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-[14px] font-semibold mb-1">{t("settings:tabs.search")}</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Configure search behavior. QMD adds semantic and deep search capabilities to the knowledge base.
+        </p>
+      </div>
+
+      {/* Default search mode */}
+      <div>
+        <h4 className="text-[13px] font-medium mb-2">Default search mode</h4>
+        <div className="space-y-2">
+          {MODES.map((m) => (
+            <label
+              key={m.id}
+              className={cn(
+                "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                mode === m.id
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:bg-muted/50"
+              )}
+            >
+              <input
+                type="radio"
+                name="search-mode"
+                checked={mode === m.id}
+                onChange={() => setMode(m.id)}
+                className="mt-0.5"
+              />
+              <div>
+                <span className="text-[13px] font-medium">{m.label}</span>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{m.desc}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* QMD Index Status */}
+      <div className="rounded-lg border border-border p-4 space-y-3">
+        <h4 className="text-[13px] font-medium">QMD Index</h4>
+        {qmdStatus === null ? (
+          <p className="text-[12px] text-muted-foreground">Checking QMD status…</p>
+        ) : qmdStatus.available ? (
+          <div className="space-y-2 text-[12px]">
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-500">●</span>
+              <span>Available</span>
+            </div>
+            {qmdStatus.documents != null && (
+              <p className="text-muted-foreground">{qmdStatus.documents} docs · {qmdStatus.collections ?? "?"} collections</p>
+            )}
+            {qmdStatus.lastIndexed && (
+              <p className="text-muted-foreground">Last indexed: {new Date(qmdStatus.lastIndexed).toLocaleDateString()}</p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={handleReindex}
+              disabled={reindexing}
+            >
+              {reindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              {reindexing ? "Re-indexing…" : "Re-index"}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-2 text-[12px]">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">○</span>
+              <span>Not available</span>
+            </div>
+            <p className="text-muted-foreground">
+              Install QMD to enable semantic and deep search. Run{" "}
+              <code className="rounded bg-muted px-1">npm install -g @tobilu/qmd</code>.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type SearchScope = "all" | "pages" | "agents" | "tasks";
+export type SearchMode = "keyword" | "semantic" | "deep";
 
 export interface SearchMatch {
   line: number;
@@ -88,6 +89,8 @@ interface SearchState {
   open: boolean;
   query: string;
   scope: SearchScope;
+  mode: SearchMode;
+  qmdAvailable: boolean;
   loading: boolean;
   results: SearchResponse | null;
   serviceError: string | null;
@@ -102,6 +105,9 @@ interface SearchState {
   closePalette: () => void;
   setQuery: (q: string) => void;
   setScope: (scope: SearchScope) => void;
+  setMode: (mode: SearchMode) => void;
+  setQmdAvailable: (v: boolean) => void;
+  checkQmdAvailability: () => Promise<void>;
   setResults: (r: SearchResponse | null) => void;
   setServiceError: (msg: string | null) => void;
   setLoading: (v: boolean) => void;
@@ -118,6 +124,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   open: false,
   query: "",
   scope: "all",
+  mode: "keyword",
+  qmdAvailable: false,
   loading: false,
   results: null,
   serviceError: null,
@@ -138,6 +146,23 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     }),
   setQuery: (q) => set({ query: q, aiResult: null, serviceError: null }),
   setScope: (scope) => set({ scope }),
+  setMode: (mode) => set({ mode }),
+  setQmdAvailable: (v) => set({ qmdAvailable: v }),
+  checkQmdAvailability: async () => {
+    try {
+      const res = await fetch("/api/search-qmd?q=__status_check__&limit=1", {
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set({ qmdAvailable: data.available !== false && data.mode === "qmd" });
+      } else {
+        set({ qmdAvailable: false });
+      }
+    } catch {
+      set({ qmdAvailable: false });
+    }
+  },
   setResults: (r) => {
     const firstResult =
       r?.pages[0]?.id ?? r?.agents[0]?.slug ?? r?.tasks[0]?.id ?? null;
