@@ -258,8 +258,8 @@ const QMD: CatalogEntry = {
   authBackend: "none",
   transport: "stdio",
   mcpServerName: "cabinet-qmd",
-  command: "qmd",
-  args: ["mcp"],
+  command: "npx",
+  args: ["-y", "--package=@tobilu/qmd", "qmd", "mcp"],
   credentials: [],
   actions: [
     "Hybrid search (BM25 + vector + LLM reranking) across indexed documents",

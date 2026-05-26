@@ -4,14 +4,15 @@ set -euo pipefail
 echo "==> Installing QMD globally via npm..."
 npm install -g @tobilu/qmd
 
-echo "==> Adding Cabinet data directory as QMD collection..."
-qmd collection add ~/cabinet/data --name cabinet --mask "**/*.md"
+echo "==> Adding Cabinet directories as QMD collections..."
+qmd collection add ~/cabinet/data --name cabinet
+qmd collection add ~/cabinet/data/.agents --name cabinet-agents
+qmd collection add ~/cabinet/data/.global-agents --name cabinet-global
 
 echo "==> Adding context..."
-qmd context add qmd://cabinet "Cabinet knowledge base — user notes, documentation, agent configs, conversations"
-qmd context add qmd://cabinet/.global-agents "Global agent persona definitions"
-qmd context add qmd://cabinet/.agents "Per-cabinet agent configs and conversations"
-qmd context add qmd://cabinet/.home "Home/dashboard pages"
+qmd context add qmd://cabinet "Cabinet knowledge base — user notes, documentation, and home/dashboard pages"
+qmd context add qmd://cabinet-global "Global agent persona definitions"
+qmd context add qmd://cabinet-agents "Per-cabinet agent configs and conversations"
 
 echo "==> Generating vector embeddings (may download GGUF models on first run)..."
 qmd embed

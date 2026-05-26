@@ -279,9 +279,9 @@ function startSearchWatcher(): void {
         if (qmdIsEmbedding) return;
         qmdIsEmbedding = true;
         try {
-          const result = await updateQmdIndex({ collections: ["cabinet"] });
+          const result = await updateQmdIndex();
           if (!("error" in result) && result.needsEmbedding > 0) {
-            await embedQmd({ collection: "cabinet" });
+            await embedQmd();
           }
         } finally {
           qmdIsEmbedding = false;
@@ -1961,9 +1961,9 @@ const server = http.createServer(async (req, res) => {
     qmdIsEmbedding = true;
     (async () => {
       try {
-        const result = await updateQmdIndex({ collections: ["cabinet"] });
+        const result = await updateQmdIndex();
         if (!("error" in result) && result.needsEmbedding > 0) {
-          await embedQmd({ collection: "cabinet" });
+          await embedQmd();
         }
       } finally {
         qmdIsEmbedding = false;
@@ -2101,6 +2101,17 @@ server.listen(PORT, () => {
       console.log(`  QMD search: not available`);
       return;
     }
+    // Background catch-up sync for offline changes
+    void (async () => {
+      try {
+        const updateRes = await updateQmdIndex();
+        if (!("error" in updateRes) && updateRes.needsEmbedding > 0) {
+          await embedQmd();
+        }
+      } catch (err) {
+        console.warn("[cabinet-daemon] QMD startup update failed:", err);
+      }
+    })();
     const status = await getQmdStatus();
     if ("error" in status) {
       console.log(`  QMD search: available (status error: ${status.error})`);

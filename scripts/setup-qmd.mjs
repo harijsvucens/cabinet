@@ -20,6 +20,8 @@ const store = await createStore({
   config: {
     collections: {
       cabinet: { path: DATA_DIR, pattern: "**/*.md" },
+      "cabinet-agents": { path: path.join(DATA_DIR, ".agents"), pattern: "**/*.md" },
+      "cabinet-global": { path: path.join(DATA_DIR, ".global-agents"), pattern: "**/*.md" },
     },
   },
 });
@@ -37,7 +39,7 @@ console.log("\nStatus after update:", JSON.stringify(status, null, 2));
 
 if (updateResult.needsEmbedding > 0) {
   console.log("\nGenerating embeddings...");
-  const embedResult = await store.embed({ collection: "cabinet" });
+  const embedResult = await store.embed();
   console.log("Embed result:", JSON.stringify(embedResult, null, 2));
 } else {
   console.log("\nNo embeddings needed");
