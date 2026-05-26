@@ -174,11 +174,19 @@ export async function createPage(
 
 export async function deletePage(virtualPath: string): Promise<void> {
   const resolved = resolveContentPath(virtualPath);
-  const stat = await fs.lstat(resolved).catch(() => null);
-  if (stat?.isSymbolicLink()) {
-    await unlinkSymlink(resolved);
+
+  // Tree-builder strips .md from node.path for markdown files, so we may need
+  // to try both the bare path and the .md extension — match readPage/writePage.
+  const mdCandidate = resolved.endsWith(".md") ? resolved : `${resolved}.md`;
+
+  const stat = await fs.lstat(mdCandidate).catch(() => null);
+  const target = stat ? mdCandidate : resolved;
+
+  const targetStat = stat ?? (await fs.lstat(target).catch(() => null));
+  if (targetStat?.isSymbolicLink()) {
+    await unlinkSymlink(target);
   } else {
-    await deleteFileOrDir(resolved);
+    await deleteFileOrDir(target);
   }
 }
 
