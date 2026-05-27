@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDaemonUrl, getOrCreateDaemonToken } from "@/lib/agents/daemon-auth";
 import type { SearchResponse } from "../../../../server/search/types";
+import { cleanQuery, rewriteQuery } from "../../../../server/search/query-rewrite";
 
 const DAEMON_HINT = "Search is unavailable. Start the daemon: npm run dev:daemon";
 
@@ -17,7 +18,8 @@ function emptyResponse(q: string): SearchResponse {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
+  const rawQ = (req.nextUrl.searchParams.get("q") ?? "").trim();
+  const q = cleanQuery(rawQ);
   const collection = req.nextUrl.searchParams.get("collection") || "cabinet";
   const limit = parseInt(req.nextUrl.searchParams.get("limit") || "10", 10);
   const minScore = parseFloat(req.nextUrl.searchParams.get("minScore") || "0");
@@ -78,6 +80,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
       const fallbackData = await fallbackResponse.json() as SearchResponse;
       return NextResponse.json({ mode: "flexsearch-fallback", available: false, ...fallbackData });
+    }
+
+    // Fallback: try query rewrite if no page results
+    const pageCount = Array.isArray(data.pages) ? data.pages.length : 0;
+    if (pageCount === 0) {
+      const rewritten = rewriteQuery(q);
+      if (rewritten && rewritten !== q) {
+        const retryUrl = new URL(`${getDaemonUrl()}/search-qmd`);
+        retryUrl.searchParams.set("q", rewritten);
+        retryUrl.searchParams.set("collection", collection);
+        retryUrl.searchParams.set("limit", String(limit));
+        retryUrl.searchParams.set("minScore", String(minScore));
+        if (explain) retryUrl.searchParams.set("explain", "true");
+        if (rerank) retryUrl.searchParams.set("rerank", "true");
+        if (cabinet) retryUrl.searchParams.set("cabinet", cabinet);
+
+        const retryResponse = await fetch(retryUrl.toString(), {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+          signal: AbortSignal.timeout(15_000),
+        });
+
+        if (retryResponse.ok) {
+          const retryData = await retryResponse.json();
+          const retryPageCount = Array.isArray(retryData.pages) ? retryData.pages.length : 0;
+          if (retryPageCount > 0) {
+            return NextResponse.json({ mode: "qmd+rewritten", rewritten: true, ...retryData });
+          }
+        }
+      }
     }
 
     return NextResponse.json({ mode: "qmd", ...data });

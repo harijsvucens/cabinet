@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDaemonUrl, getOrCreateDaemonToken } from "@/lib/agents/daemon-auth";
 import type { PageHit, SearchResponse } from "../../../../../server/search/types";
+import { cleanQuery, rewriteQuery } from "../../../../../server/search/query-rewrite";
 
 type SearchMode = "semantic" | "keyword" | "hybrid";
 type OutputFormat = "json" | "markdown" | "md";
@@ -22,7 +23,8 @@ interface KBSearchParams {
 }
 
 function parseParams(req: NextRequest): KBSearchParams {
-  const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
+  const rawQ = (req.nextUrl.searchParams.get("q") ?? "").trim();
+  const q = cleanQuery(rawQ);
   const mode = (req.nextUrl.searchParams.get("mode") ?? "hybrid") as SearchMode;
   const format = (req.nextUrl.searchParams.get("format") ?? "json") as OutputFormat;
   const topK = Math.min(Math.max(parseInt(req.nextUrl.searchParams.get("topK") || "10", 10) || 10, 1), 50);
@@ -199,21 +201,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       break;
   }
 
-  // Auto-retry with default intent when results are weak and no intent was specified
-  if (!params.intent) {
-    const topScore = result.pages[0]?.score ?? 0;
-    const weakResults = result.pages.length === 0
-      || (params.mode === "semantic" && topScore > 0 && topScore < 0.3);
+  // Fallback: try query rewrite if no results
+  if (result.pages.length === 0) {
+    const rewritten = rewriteQuery(params.q);
+    if (rewritten && rewritten !== params.q) {
+      const rewrittenParams = { ...params, q: rewritten };
+      const rewriteResult = params.mode === "keyword"
+        ? await searchKeyword(rewrittenParams)
+        : params.mode === "semantic"
+          ? await searchSemantic(rewrittenParams)
+          : await searchHybrid(rewrittenParams);
 
-    if (weakResults) {
-      const retryResult = params.mode === "keyword"
-        ? result
-        : await (params.mode === "semantic"
-          ? searchSemantic({ ...params, intent: "hardware+engineering+failure+modes" })
-          : searchHybrid({ ...params, intent: "hardware+engineering+failure+modes" }));
-
-      if (retryResult.pages.length > result.pages.length) {
-        result = retryResult;
+      if (rewriteResult.pages.length > 0) {
+        result = { ...rewriteResult, mode: `${rewriteResult.mode}+rewritten` };
       }
     }
   }
@@ -228,6 +228,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({
     query: params.q,
     mode: result.mode,
+    rewritten: result.mode.includes("rewritten"),
     resultCount: result.pages.length,
     tookMs: result.tookMs,
     results: result.pages.map((p) => ({
