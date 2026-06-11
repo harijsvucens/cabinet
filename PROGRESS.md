@@ -1410,3 +1410,5 @@
 [2026-06-11] Telegram /model: effort-level support. /model <provider> [<model>] [<effort>] with registry validation; when the chosen model has effortLevels and none is given, the HIGHEST level (e.g. max) is applied automatically; bare effort token (/model claude-code max) applies to the persona model; effort rides adapterConfig on starts and the per-turn override on continues; shown in /status; /model reset clears it.
 
 [2026-06-11] Telegram-launched tasks now carry a paper-plane prefix in the task title ("\u2708\ufe0f <title>"), set at conversation creation in the gateway router, so they are recognizable at a glance in the board/lists/toasts on top of the "Telegram" trigger badge.
+
+[2026-06-11] Telegram /model: provider-only overrides now also default to the highest effort level, sourced from the provider-level effortLevels list (e.g. /model claude-code applies max); model-specific picks still use the model's own levels, and effort-less models like haiku stay unforced.

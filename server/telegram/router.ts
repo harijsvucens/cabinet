@@ -440,12 +440,15 @@ async function runModelCommand(ctx: RouterContext, state: ChatState, arg: string
     return;
   }
 
-  // "Max effort if you can": when the chosen model supports effort levels and
-  // none was given, default to the highest one (lists are ordered low → max).
+  // "Max effort if you can": when no effort was given, default to the highest
+  // available level (lists are ordered low → max). With a model chosen, use
+  // that model's levels (haiku has none → no forced effort); provider-only
+  // overrides use the provider-level list (e.g. claude-code ends at "max").
   const chosenModel = model ? providerModels.find((m) => m.id === model) : undefined;
   const modelLevels = chosenModel?.effortLevels ?? [];
-  if (!effort && modelLevels.length > 0) {
-    effort = modelLevels[modelLevels.length - 1].id;
+  const defaultPool = chosenModel ? modelLevels : provider.effortLevels ?? [];
+  if (!effort && defaultPool.length > 0) {
+    effort = defaultPool[defaultPool.length - 1].id;
   }
   if (effort && modelLevels.length > 0 && !modelLevels.some((l) => l.id === effort)) {
     await safeSend(
