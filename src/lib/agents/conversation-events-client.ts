@@ -18,11 +18,15 @@ type ConversationEventListener = (data: string) => void;
 
 const listeners = new Set<ConversationEventListener>();
 let source: EventSource | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+const RETRY_MS = 2000;
 
 function ensureSource(): void {
   if (source) return;
-  source = new EventSource("/api/agents/conversations/events");
-  source.onmessage = (msg) => {
+  const es = new EventSource("/api/agents/conversations/events");
+  source = es;
+  es.onmessage = (msg) => {
     for (const listener of [...listeners]) {
       try {
         listener(msg.data);
@@ -31,8 +35,21 @@ function ensureSource(): void {
       }
     }
   };
-  // No onerror handling needed: EventSource reconnects on its own, and we
-  // never want to tear the shared stream down while subscribers exist.
+  // EventSource reconnects on its own from transient errors (readyState
+  // stays CONNECTING), but a fatal failure — e.g. an HTTP error response
+  // during a dev-server recompile — closes it permanently. Recreate the
+  // stream after a short delay while subscribers still exist, so one bad
+  // response doesn't kill live updates for the rest of the session.
+  es.onerror = () => {
+    if (source !== es || es.readyState !== EventSource.CLOSED) return;
+    source = null;
+    if (listeners.size > 0 && retryTimer === null) {
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (listeners.size > 0) ensureSource();
+      }, RETRY_MS);
+    }
+  };
 }
 
 /**
@@ -50,8 +67,12 @@ export function subscribeConversationEvents(
     if (!active) return;
     active = false;
     listeners.delete(listener);
-    if (listeners.size === 0 && source) {
-      source.close();
+    if (listeners.size === 0) {
+      if (retryTimer !== null) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+      source?.close();
       source = null;
     }
   };
