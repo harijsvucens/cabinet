@@ -49,6 +49,10 @@ const TRIGGER_STYLES: Record<
     label: "Agent",
     className: "bg-muted text-muted-foreground ring-1 ring-border/60",
   },
+  telegram: {
+    label: "Telegram",
+    className: "bg-muted text-muted-foreground ring-1 ring-border/60",
+  },
 };
 
 function TriggerBadge({ trigger }: { trigger: TaskMeta["trigger"] }) {

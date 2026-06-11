@@ -97,10 +97,10 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     name: "Telegram",
     category: "communication",
     logo: L("telegram.svg"),
-    blurb: "Send messages and manage the chats your bot is in.",
+    blurb: "Send messages and manage the chats your bot is in. Or flip it around: drive Cabinet from Telegram.",
     brand: "#26a5e4",
     implemented: true,
-    actions: ["Send messages & announcements", "Reply in topics", "React to messages"],
+    actions: ["Send messages & announcements", "Run agents & search Cabinet from your phone", "React to messages"],
   },
   {
     id: "microsoft-teams",

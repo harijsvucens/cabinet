@@ -448,7 +448,8 @@ const MICROSOFT_365: CatalogEntry = {
 const TELEGRAM: CatalogEntry = {
   id: "telegram",
   label: "Telegram",
-  blurb: "Send messages, react, and manage the chats your bot is in.",
+  blurb:
+    "Send messages, react, and manage the chats your bot is in. Allowlist yourself to drive Cabinet from Telegram: run agents and search your knowledge base from your phone.",
   iconSlug: "telegram",
   bgImage: "/integrations/telegram-bg.webp",
   logo: "/logos/telegram.svg",
@@ -480,12 +481,29 @@ const TELEGRAM: CatalogEntry = {
       placeholder: "@yourchannel or -1001234567890",
       hint: "Pins every action to this one chat so the bot can't touch other chats it's in.",
     },
+    {
+      envKey: "TELEGRAM_ALLOWED_USERS",
+      label: "Remote control: allowed user IDs",
+      kind: "plain",
+      required: false,
+      placeholder: "123456789, 987654321",
+      hint: "Numeric Telegram user IDs allowed to drive Cabinet from Telegram (message @userinfobot to find yours). Leave empty to keep remote control off.",
+    },
+    {
+      envKey: "TELEGRAM_DEFAULT_AGENT",
+      label: "Remote control: default agent (optional)",
+      kind: "plain",
+      required: false,
+      placeholder: "brain",
+      hint: "Agent slug that handles plain messages from Telegram. Empty = auto-pick an orchestrator.",
+    },
   ],
   actions: [
     "Send messages & announcements",
     "Reply in topics / threads",
     "React to messages",
     "Edit or delete the bot's own messages",
+    "Remote control: run agents & search Cabinet from Telegram",
   ],
   setupSteps: [
     {
@@ -504,6 +522,11 @@ const TELEGRAM: CatalogEntry = {
     {
       title: "Scope it to one chat (recommended)",
       body: "Paste your chat's id or @username so every action is pinned there. Group ids are negative numbers, e.g. -1001234567890.",
+    },
+    {
+      title: "Allow yourself to drive Cabinet (optional)",
+      body: "Message @userinfobot to get your numeric Telegram user id and paste it into the allowed-users field. Then DM your bot: plain messages run your orchestrator agent, /search queries the knowledge base, /help lists everything.",
+      href: "https://t.me/userinfobot",
     },
   ],
 };
