@@ -428,11 +428,14 @@ export function useRoute() {
   // Initial load: translate any legacy `#/...` link to a clean path, then
   // apply whatever the pathname says.
   useEffect(() => {
+    // Only a route-shaped hash (`#/...`) is a legacy link to translate; a bare
+    // `#section` is an in-page anchor and must be left for the scroll handler.
     const hash = window.location.hash;
-    if (hash && hash !== "#" && hash !== "#/") {
+    if (hash.startsWith("#/") && hash !== "#/") {
       try {
         const legacy = parseHash(hash);
         const cleanPath = buildPath(legacy.section, legacy.pagePath);
+        // Preserve any trailing in-page anchor on the legacy URL.
         window.history.replaceState(null, "", cleanPath);
       } catch {
         // ignore a malformed legacy hash

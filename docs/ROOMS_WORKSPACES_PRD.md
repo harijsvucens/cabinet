@@ -421,6 +421,13 @@ Add focused tests for:
 > property; browser E2E: a deep page reloads to the same URL and renders). Reserved cabinet names:
 > `data`/`agents`/`tasks`. The legacy no-`/data/` page form now resolves to a cabinet root (accepted
 > back-compat change; the canonical builder always emits `/data/`).
+> **✅ Cutover COMPLETE (2026-06-13) — web + Electron + anchors, browser-verified.** The app routes
+> off `window.location.pathname`; `#` is free for in-page section anchors. Verified in Chrome DevTools:
+> `/` → `/room/hilas-home` overview (clean URL, no `#`); legacy `#/cabinet/.../data/...` → clean
+> `/room/.../progress` (drops `/data/` + doubling); cold deep-links resolve (no collapse); nested
+> cabinet → overview; `…/ingestion#field-mapping` scrolls to the heading. tsc + lint clean; suite
+> 145/147 (2 pre-existing data-fixture failures). Per-step detail below.
+>
 > **Cutover progress (incremental, checkpointed):**
 > - ✅ **Step 1 — serving.** `src/app/[...slug]/page.tsx` catch-all renders the shell for any clean
 >   path. Verified: `/room/a/b/c` → 200 + shell; `/api/*` and `/` unaffected. App still hash-routed

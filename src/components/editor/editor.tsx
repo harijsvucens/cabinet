@@ -233,6 +233,24 @@ export function KBEditor() {
             return true;
           }
 
+          // Plain in-page section anchor: #heading (PRD §11). Routing lives on
+          // the path now, so a bare hash is a scroll target, not a route.
+          if (href.startsWith("#")) {
+            event.preventDefault();
+            event.stopPropagation();
+            const id = decodeURIComponent(href.slice(1));
+            const el = id ? document.getElementById(id) : null;
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              window.history.replaceState(
+                null,
+                "",
+                `${window.location.pathname}${href}`
+              );
+            }
+            return true;
+          }
+
           // Internal links: relative paths to .md files or other KB pages
           // Skip external URLs and API asset links (PDFs, images)
           if (/^https?:\/\//.test(href) || href.startsWith("/api/")) return false;
@@ -383,6 +401,30 @@ export function KBEditor() {
 
     setContent();
   }, [editor, content, currentPath, assetBase, isLoading, rendered]);
+
+  // Section anchors (PRD §11): scroll to `#heading` on load and on hashchange.
+  // Heading ids come from the HeadingAnchors decoration, applied after content
+  // renders, so retry a few frames until the target exists.
+  useEffect(() => {
+    if (!editor) return;
+    const scrollToHash = () => {
+      const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      if (!id) return;
+      let tries = 0;
+      const tick = () => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (tries++ < 20) {
+          requestAnimationFrame(tick);
+        }
+      };
+      tick();
+    };
+    scrollToHash();
+    window.addEventListener("hashchange", scrollToHash);
+    return () => window.removeEventListener("hashchange", scrollToHash);
+  }, [editor, currentPath, rendered]);
 
   // Push frontmatter.dir into the ProseMirror contenteditable element so list
   // indentation, table cell alignment, and block direction all flip when the

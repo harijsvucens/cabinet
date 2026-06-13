@@ -676,20 +676,22 @@ async function createWindow() {
 
 // Spawn an additional window scoped to a specific room/cabinet via its URL hash
 // (e.g. "#/cabinet/research"). Reuses the already-running backend.
-async function openRoomWindow(hash) {
-  const safeHash = typeof hash === "string" ? hash : "";
+async function openRoomWindow(suffix) {
+  // `suffix` is a clean URL path ("/room/<path>") under clean-path routing
+  // (PRD §11); it was a "#/..." hash before. Concatenation is identical.
+  const safeSuffix = typeof suffix === "string" ? suffix : "";
   if (!baseAppUrl) {
     await createWindow();
     return { ok: true };
   }
   const win = buildBrowserWindow();
-  attachDevReload(win, safeHash);
-  await win.loadURL(`${baseAppUrl}${safeHash}`);
+  attachDevReload(win, safeSuffix);
+  await win.loadURL(`${baseAppUrl}${safeSuffix}`);
   win.focus();
   return { ok: true };
 }
 
-ipcMain.handle("cabinet:open-window", (_event, hash) => openRoomWindow(hash));
+ipcMain.handle("cabinet:open-window", (_event, suffix) => openRoomWindow(suffix));
 
 app.on("window-all-closed", () => {
   cleanupBackends();
