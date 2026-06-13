@@ -1902,6 +1902,9 @@ const server = http.createServer(async (req, res) => {
       const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
       const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 50;
       const cabinet = url.searchParams.get("cabinet") || undefined;
+      // Explicit, opt-in cross-room search (PRD §10.1). Absent ⇒ scoped to
+      // the room; runSearch fails closed when no room is resolved.
+      const includeOtherRooms = url.searchParams.get("includeOtherRooms") === "1";
 
       const needsAgents = scope === "all" || scope === "agents";
       const needsTasks = scope === "all" || scope === "tasks";
@@ -1921,7 +1924,8 @@ const server = http.createServer(async (req, res) => {
         q,
         scope,
         limit,
-        cabinet
+        cabinet,
+        includeOtherRooms
       );
 
       res.writeHead(200, { "Content-Type": "application/json" });
