@@ -378,6 +378,11 @@ export function KBEditor() {
     // pure waste — every extension runs a full schema pass twice per
     // navigation. Skip until the real content arrives.
     if (isLoading && content === "") return;
+    // Don't commit an empty render for a path whose fetch hasn't reported
+    // success yet. If a cached paint or transient state lands content=""
+    // before loadStatus flips to "ok" (isLoading already false), recording it
+    // as the rendered key would hide the loading overlay over a blank page.
+    if (content === "" && loadStatus !== "ok") return;
     // Dedupe identical (path, content) renders — e.g. cached paint followed
     // by a fresh fetch that returned the same markdown.
     // assetBase is in the key so a cached paint (assetBase null -> path
@@ -389,18 +394,48 @@ export function KBEditor() {
 
     const setContent = async () => {
       isLoadingRef.current = true;
-      // assetBase (parent dir for standalone .md pages) resolves relative
-      // image refs; currentPath is only correct for directory pages.
-      const html = await markdownToHtml(content, assetBase ?? currentPath);
-      editor.commands.setContent(html);
-      setRendered({ key, path: currentPath });
-      setTimeout(() => {
-        isLoadingRef.current = false;
-      }, 50);
+      try {
+        // assetBase (parent dir for standalone .md pages) resolves relative
+        // image refs; currentPath is only correct for directory pages.
+        const html = await markdownToHtml(content, assetBase ?? currentPath);
+        editor.commands.setContent(html);
+        setRendered({ key, path: currentPath });
+        // Surface a known-bad state instead of silently rendering blank: the
+        // store has content but ProseMirror parsed it down to nothing —
+        // almost always a schema/extension mismatch (unknown element,
+        // malformed table, …). Log so it's debuggable.
+        if (content && editor.isEmpty) {
+          console.warn(
+            "[KBEditor] rendered empty document despite non-empty markdown",
+            { path: currentPath, contentLength: content.length }
+          );
+        }
+      } catch (err) {
+        // Leave `rendered` unset (it's only set on success above) so the next
+        // state tick retries instead of being blocked by a stale key.
+        console.error("[KBEditor] failed to render markdown", err, {
+          path: currentPath,
+          contentLength: content.length,
+        });
+      } finally {
+        setTimeout(() => {
+          isLoadingRef.current = false;
+        }, 50);
+      }
     };
 
     setContent();
-  }, [editor, content, currentPath, assetBase, isLoading, rendered]);
+  }, [editor, content, currentPath, assetBase, isLoading, loadStatus, rendered]);
+
+  // Source mode snapshots the markdown when toggled on but doesn't follow
+  // store updates — navigating to a new page with source mode open used to
+  // leave the textarea showing the previous page. Re-sync whenever the store
+  // content changes for this path and the user hasn't started editing.
+  useEffect(() => {
+    if (!sourceMode) return;
+    if (useEditorStore.getState().isDirty) return;
+    setSourceText((prev) => (prev === content ? prev : content));
+  }, [sourceMode, content, currentPath]);
 
   // Section anchors (PRD §11): scroll to `#heading` on load and on hashchange.
   // Heading ids come from the HeadingAnchors decoration, applied after content

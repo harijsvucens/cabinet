@@ -8,9 +8,11 @@ import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import {
   resolveArtifactTreePath,
+  isExternalArtifactPath,
   inferPageTypeFromPath,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
+import { notifyExternalArtifact } from "@/lib/navigation/open-artifact-path";
 import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { conversationMetaToTaskMeta } from "@/lib/agents/conversation-to-task-view";
 import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
@@ -384,6 +386,10 @@ export function RecentTasks({
                       key={path}
                       type="button"
                       onClick={() => {
+                        if (isExternalArtifactPath(path)) {
+                          notifyExternalArtifact(path);
+                          return;
+                        }
                         const treePath = resolveArtifactTreePath(
                           path,
                           task.cabinetPath

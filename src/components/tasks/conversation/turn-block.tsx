@@ -4,10 +4,12 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { ChevronRight, Pause, Sparkles, User } from "lucide-react";
 import {
   resolveArtifactTreePath,
+  isExternalArtifactPath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
+import { notifyExternalArtifact } from "@/lib/navigation/open-artifact-path";
 import { useAppStore, type SelectedSection } from "@/stores/app-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
@@ -154,6 +156,10 @@ function KbArtifactRow({
     <button
       type="button"
       onClick={() => {
+        if (isExternalArtifactPath(path)) {
+          notifyExternalArtifact(path);
+          return;
+        }
         const from = returnContext ?? useAppStore.getState().section;
         const treePath = resolveArtifactTreePath(path, cabinetPath ?? from.cabinetPath);
         focusPath(treePath);

@@ -126,6 +126,8 @@ export function artifactPathToTreePath(path: string): string {
  *   - normalizes via {@link artifactPathToTreePath} (strips `data/`, `.md`, …)
  *   - no-ops when `cabinetPath` is missing or the root cabinet (`.`)
  *   - never double-prefixes a path that is already cabinet-rooted
+ *   - never prefixes an external (absolute-system) path — see
+ *     {@link isExternalArtifactPath}
  */
 export function resolveArtifactTreePath(
   path: string,
@@ -133,8 +135,57 @@ export function resolveArtifactTreePath(
 ): string {
   const treePath = artifactPathToTreePath(path);
   if (!treePath) return treePath;
+  // External (absolute-system) paths live outside DATA_DIR; the page API
+  // can't read them, so grafting a cabinet prefix on would just produce a
+  // bogus tree path. Callers should short-circuit navigation via
+  // isExternalArtifactPath; this is a backstop so resolution never lies.
+  if (isExternalArtifactPath(path)) return treePath;
   const base = (cabinetPath ?? "").trim().replace(/^\/+|\/+$/g, "");
   if (!base || base === ".") return treePath;
   if (treePath === base || treePath.startsWith(`${base}/`)) return treePath;
   return `${base}/${treePath}`;
+}
+
+/**
+ * macOS/Linux system-root segments that an artifact path under DATA_DIR could
+ * never legitimately start with. Used to detect absolute filesystem paths an
+ * agent recorded as artifacts (e.g. files it wrote to Claude Code's auto-memory
+ * dir at `/Users/.../.claude/projects/.../memory/`). The page API's
+ * path-traversal guard refuses anything outside DATA_DIR, so these would
+ * silently 404 if we tried to render them through the editor.
+ */
+const EXTERNAL_PATH_ROOTS = new Set([
+  "Users",
+  "home",
+  "private",
+  "tmp",
+  "var",
+  "etc",
+  "opt",
+  "bin",
+  "sbin",
+  "lib",
+  "usr",
+  "dev",
+  "Volumes",
+  "Library",
+  "Applications",
+  "System",
+]);
+
+/**
+ * True when an artifact path points outside the cabinet's DATA_DIR. Such paths
+ * can't be rendered through the page API — callers should either disable
+ * navigation or surface a clear "outside cabinet" message instead of letting
+ * the editor render blank.
+ */
+export function isExternalArtifactPath(path: string): boolean {
+  if (!path) return false;
+  const trimmed = path.trim();
+  // Windows drive prefixes (C:/, D:\, …) are unambiguously absolute.
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed)) return true;
+  const noSlashes = trimmed.replace(/^\/+/, "");
+  if (noSlashes.startsWith("data/")) return false;
+  const firstSeg = noSlashes.split("/", 1)[0] ?? "";
+  return EXTERNAL_PATH_ROOTS.has(firstSeg);
 }

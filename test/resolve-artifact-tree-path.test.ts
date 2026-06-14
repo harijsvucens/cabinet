@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   resolveArtifactTreePath,
   artifactPathToTreePath,
+  isExternalArtifactPath,
 } from "@/lib/ui/page-type-icons";
 
 // Regression: agents run with cwd DATA_DIR/<cabinetPath>, so the artifact
@@ -62,4 +63,42 @@ test("tolerates surrounding slashes on the cabinetPath", () => {
 
 test("empty artifact path stays empty", () => {
   assert.equal(resolveArtifactTreePath("", CWD), "");
+});
+
+// --- isExternalArtifactPath + the resolver's external backstop -------------
+// An agent can record an artifact outside DATA_DIR (e.g. Claude Code's
+// auto-memory at /Users/.../.claude/...). Those can't render through the page
+// API, so callers short-circuit on isExternalArtifactPath, and the resolver
+// must never graft a cabinet prefix onto them.
+
+test("flags absolute system paths as external", () => {
+  for (const p of [
+    "/Users/me/.claude/projects/x/memory/note.md",
+    "/tmp/scratch.md",
+    "/var/log/x.md",
+    "/etc/hosts",
+    "/home/me/notes.md",
+    "C:/Users/me/file.md",
+    "D:\\work\\file.md",
+  ]) {
+    assert.equal(isExternalArtifactPath(p), true, p);
+  }
+});
+
+test("does NOT flag in-cabinet / data-rooted paths as external", () => {
+  for (const p of [
+    "feedback-tracker/github/contributors.md",
+    "data/notes/today.md",
+    "kb/reports/foo.md",
+    "",
+  ]) {
+    assert.equal(isExternalArtifactPath(p), false, p);
+  }
+});
+
+test("resolver never prefixes an external path with the cabinet", () => {
+  assert.equal(
+    resolveArtifactTreePath("/Users/me/.claude/memory/note.md", CWD),
+    "Users/me/.claude/memory/note"
+  );
 });

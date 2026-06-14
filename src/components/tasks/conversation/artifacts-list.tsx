@@ -7,10 +7,12 @@ import { useEditorStore } from "@/stores/editor-store";
 import { useTreeStore } from "@/stores/tree-store";
 import {
   resolveArtifactTreePath,
+  isExternalArtifactPath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
+import { notifyExternalArtifact } from "@/lib/navigation/open-artifact-path";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { cn } from "@/lib/utils";
 import type { Turn } from "@/types/tasks";
@@ -90,6 +92,13 @@ export function ArtifactsList({
             key={path}
             type="button"
             onClick={() => {
+              if (isExternalArtifactPath(path)) {
+                // Artifact lives outside DATA_DIR (e.g. an agent wrote to
+                // Claude Code's auto-memory dir). The page API would 404 and
+                // the editor would render blank — surface the path instead.
+                notifyExternalArtifact(path);
+                return;
+              }
               const from = returnContext ?? useAppStore.getState().section;
               focusPath(treePath);
               pushSection({ type: "page", cabinetPath: from.cabinetPath }, from);
