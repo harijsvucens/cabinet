@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
-import { artifactPathToTreePath } from "@/lib/ui/page-type-icons";
+import { resolveArtifactTreePath } from "@/lib/ui/page-type-icons";
 import { subscribeConversationEvents } from "@/lib/agents/conversation-events-client";
 
 /**
@@ -40,7 +40,10 @@ export function useTaskFileSync(): void {
 
       // Highlight everything except the page the user is already looking at.
       useTreeStore.getState().markChanged(treePaths.filter((p) => p !== openPath));
-      void useTreeStore.getState().loadTree();
+      // `fresh` busts the server tree cache: agents write straight to disk, so
+      // a plain reload could serve the pre-write snapshot and the new files
+      // wouldn't show until the user hit refresh.
+      void useTreeStore.getState().loadTree({ fresh: true });
 
       if (openPath && treePaths.includes(openPath)) {
         if (!editor.isDirty) {
@@ -62,9 +65,12 @@ export function useTaskFileSync(): void {
       }
     };
 
-    const schedule = (rawPaths: string[]) => {
+    // Artifact paths are reported relative to the task's working directory
+    // (its `cabinetPath`); re-root them to the `data/`-rooted tree path so the
+    // highlight matches real tree nodes and the right page reloads.
+    const schedule = (rawPaths: string[], cabinetPath?: string) => {
       for (const raw of rawPaths) {
-        const tp = artifactPathToTreePath(raw);
+        const tp = resolveArtifactTreePath(raw, cabinetPath);
         if (tp) pending.add(tp);
       }
       if (flushTimer === null) flushTimer = window.setTimeout(flush, 250);
@@ -74,15 +80,18 @@ export function useTaskFileSync(): void {
       try {
         const event = JSON.parse(data) as {
           type?: string;
+          cabinetPath?: unknown;
           payload?: { artifactPaths?: unknown; artifacts?: unknown };
         };
         if (!event || event.type === "ping") return;
         const p = event.payload ?? {};
+        const cabinetPath =
+          typeof event.cabinetPath === "string" ? event.cabinetPath : undefined;
         const raw = [
           ...(Array.isArray(p.artifactPaths) ? p.artifactPaths : []),
           ...(Array.isArray(p.artifacts) ? p.artifacts : []),
         ].filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-        if (raw.length > 0) schedule(raw);
+        if (raw.length > 0) schedule(raw, cabinetPath);
       } catch {
         // ignore malformed events
       }

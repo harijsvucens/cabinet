@@ -2070,6 +2070,7 @@ export function TaskConversationPage({
                   agent={turnAgent}
                   user={turnUser}
                   returnContext={returnContext}
+                  cabinetPath={task.meta.cabinetPath}
                 />
               ))}
             </div>
@@ -2132,7 +2133,11 @@ export function TaskConversationPage({
         >
           <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
             <div className="mx-auto max-w-3xl">
-              <ArtifactsList turns={task.turns} returnContext={returnContext} />
+              <ArtifactsList
+                turns={task.turns}
+                returnContext={returnContext}
+                cabinetPath={task.meta.cabinetPath}
+              />
             </div>
           </div>
         </TabsContent>

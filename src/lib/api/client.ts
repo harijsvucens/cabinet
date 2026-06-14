@@ -14,9 +14,17 @@ export function buildPageApiUrl(pagePath = ""): string {
   return `/api/pages/${encodedPath}`;
 }
 
-export async function fetchTree(showHidden = false): Promise<TreeNode[]> {
-  const url = showHidden ? "/api/tree?showHidden=1" : "/api/tree";
-  const res = await fetch(url, { cache: "no-store" });
+export async function fetchTree(
+  showHidden = false,
+  fresh = false
+): Promise<TreeNode[]> {
+  const params = new URLSearchParams();
+  if (showHidden) params.set("showHidden", "1");
+  if (fresh) params.set("fresh", "1");
+  const qs = params.toString();
+  const res = await fetch(qs ? `/api/tree?${qs}` : "/api/tree", {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error("Failed to fetch tree");
   return res.json();
 }

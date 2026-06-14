@@ -7,7 +7,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useEditorStore } from "@/stores/editor-store";
 import {
-  artifactPathToTreePath,
+  resolveArtifactTreePath,
   inferPageTypeFromPath,
   pageTypeIcon,
 } from "@/lib/ui/page-type-icons";
@@ -384,7 +384,10 @@ export function RecentTasks({
                       key={path}
                       type="button"
                       onClick={() => {
-                        const treePath = artifactPathToTreePath(path);
+                        const treePath = resolveArtifactTreePath(
+                          path,
+                          task.cabinetPath
+                        );
                         focusPath(treePath);
                         setSection({
                           type: "page",

@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ChevronRight, Pause, Sparkles, User } from "lucide-react";
 import {
-  artifactPathToTreePath,
+  resolveArtifactTreePath,
   inferPageTypeFromPath,
   pageTypeColor,
   pageTypeIcon,
@@ -136,9 +136,11 @@ function directory(p: string): string {
 function KbArtifactRow({
   path,
   returnContext,
+  cabinetPath,
 }: {
   path: string;
   returnContext?: SelectedSection;
+  cabinetPath?: string;
 }) {
   const pushSection = useAppStore((s) => s.pushSection);
   const focusPath = useTreeStore((s) => s.focusPath);
@@ -152,8 +154,8 @@ function KbArtifactRow({
     <button
       type="button"
       onClick={() => {
-        const treePath = artifactPathToTreePath(path);
         const from = returnContext ?? useAppStore.getState().section;
+        const treePath = resolveArtifactTreePath(path, cabinetPath ?? from.cabinetPath);
         focusPath(treePath);
         pushSection({ type: "page", cabinetPath: from.cabinetPath }, from);
         void loadPage(treePath);
@@ -196,11 +198,14 @@ export function TurnBlock({
   agent,
   user,
   returnContext,
+  cabinetPath,
 }: {
   turn: Turn;
   agent?: TurnBlockAgent | null;
   user?: TurnBlockUser | null;
   returnContext?: SelectedSection;
+  /** The task's working directory; artifact paths are relative to it. */
+  cabinetPath?: string;
 }) {
   const { t } = useLocale();
   const isUser = turn.role === "user";
@@ -283,7 +288,12 @@ export function TurnBlock({
         {artifactPaths.length > 0 ? (
           <div className="mt-3.5 space-y-1.5 rounded-xl border border-border/60 bg-muted/40 p-2 dark:bg-muted/20">
             {artifactPaths.map((path) => (
-              <KbArtifactRow key={path} path={path} returnContext={returnContext} />
+              <KbArtifactRow
+                key={path}
+                path={path}
+                returnContext={returnContext}
+                cabinetPath={cabinetPath}
+              />
             ))}
           </div>
         ) : null}

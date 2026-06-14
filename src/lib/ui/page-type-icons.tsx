@@ -108,3 +108,33 @@ export function artifactPathToTreePath(path: string): string {
   next = next.replace(/\.md$/, "");
   return next;
 }
+
+/**
+ * Resolve an agent-authored artifact path to the full, `data/`-rooted tree path
+ * the sidebar + `/room/<path>` URL scheme expect.
+ *
+ * Agents run with cwd `DATA_DIR/<cabinetPath>` (see conversation-runner's
+ * `baseCwd`), so the artifact paths they report are RELATIVE TO that cwd —
+ * e.g. `github/contributors.md` for a task whose `cabinetPath` is
+ * `hilas-home/cabinet-data/dev`. Tree nodes are rooted at `data/`, so the
+ * cwd-relative path must be re-rooted to
+ * `hilas-home/cabinet-data/dev/github/contributors` before it can address the
+ * tree. Without this the first segment is mistaken for a top-level room
+ * (`/room/github/...`) and the page 404s to a "create page" prompt.
+ *
+ * Idempotent and defensive:
+ *   - normalizes via {@link artifactPathToTreePath} (strips `data/`, `.md`, …)
+ *   - no-ops when `cabinetPath` is missing or the root cabinet (`.`)
+ *   - never double-prefixes a path that is already cabinet-rooted
+ */
+export function resolveArtifactTreePath(
+  path: string,
+  cabinetPath?: string | null
+): string {
+  const treePath = artifactPathToTreePath(path);
+  if (!treePath) return treePath;
+  const base = (cabinetPath ?? "").trim().replace(/^\/+|\/+$/g, "");
+  if (!base || base === ".") return treePath;
+  if (treePath === base || treePath.startsWith(`${base}/`)) return treePath;
+  return `${base}/${treePath}`;
+}

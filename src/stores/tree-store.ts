@@ -28,7 +28,9 @@ interface TreeState {
    *  sidebar (tint + dot) until the user opens them. */
   recentlyChanged: Set<string>;
 
-  loadTree: () => Promise<void>;
+  /** Reload the file tree. Pass `{ fresh: true }` to bypass the server's
+   *  short-TTL cache — needed right after an agent task writes files. */
+  loadTree: (opts?: { fresh?: boolean }) => Promise<void>;
   selectPage: (path: string | null) => void;
   /** Expand all ancestor paths, select the leaf, and bump focusTick. */
   focusPath: (path: string) => void;
@@ -114,7 +116,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   focusTick: 0,
   recentlyChanged: new Set<string>(),
 
-  loadTree: async () => {
+  loadTree: async (opts) => {
     const { showHiddenFiles, nodes: existing } = get();
     // Paint instantly from cache on first load, then revalidate in the
     // background. Keeps the sidebar from flashing empty on refresh.
@@ -127,7 +129,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       }
     }
     try {
-      const nodes = await fetchTree(showHiddenFiles);
+      const nodes = await fetchTree(showHiddenFiles, opts?.fresh ?? false);
       set({ nodes, loading: false });
       saveCachedTree(nodes, showHiddenFiles);
     } catch {
