@@ -147,45 +147,34 @@ export function resolveArtifactTreePath(
 }
 
 /**
- * macOS/Linux system-root segments that an artifact path under DATA_DIR could
- * never legitimately start with. Used to detect absolute filesystem paths an
- * agent recorded as artifacts (e.g. files it wrote to Claude Code's auto-memory
- * dir at `/Users/.../.claude/projects/.../memory/`). The page API's
- * path-traversal guard refuses anything outside DATA_DIR, so these would
- * silently 404 if we tried to render them through the editor.
- */
-const EXTERNAL_PATH_ROOTS = new Set([
-  "Users",
-  "home",
-  "private",
-  "tmp",
-  "var",
-  "etc",
-  "opt",
-  "bin",
-  "sbin",
-  "lib",
-  "usr",
-  "dev",
-  "Volumes",
-  "Library",
-  "Applications",
-  "System",
-]);
-
-/**
- * True when an artifact path points outside the cabinet's DATA_DIR. Such paths
- * can't be rendered through the page API — callers should either disable
- * navigation or surface a clear "outside cabinet" message instead of letting
- * the editor render blank.
+ * True when an artifact path points outside the cabinet's DATA_DIR — i.e. it's
+ * an *absolute* filesystem path rather than a cabinet-relative one. Such paths
+ * (e.g. files an agent wrote to Claude Code's auto-memory at
+ * `/Users/.../.claude/projects/.../memory/`) can't be read through the page
+ * API, whose path-traversal guard refuses anything outside DATA_DIR — so
+ * callers should surface an "outside cabinet" message instead of letting the
+ * editor render blank.
+ *
+ * This tests the *logical* property "is this absolute?", not a denylist of
+ * system directory names. The forms that are unambiguously absolute:
+ *   - POSIX-absolute (`/…`), except the `/data` cabinet-root alias
+ *   - home-relative (`~/…`)
+ *   - Windows drive (`C:\…`, `C:/…`) or UNC (`\\host\share`)
+ * Anything else is cabinet-relative and therefore internal — even when its
+ * first segment happens to be a name like `var`, `lib`, or `dev` (which a
+ * denylist would wrongly flag, breaking a real in-cabinet folder).
  */
 export function isExternalArtifactPath(path: string): boolean {
-  if (!path) return false;
-  const trimmed = path.trim();
-  // Windows drive prefixes (C:/, D:\, …) are unambiguously absolute.
-  if (/^[a-zA-Z]:[\\/]/.test(trimmed)) return true;
-  const noSlashes = trimmed.replace(/^\/+/, "");
-  if (noSlashes.startsWith("data/")) return false;
-  const firstSeg = noSlashes.split("/", 1)[0] ?? "";
-  return EXTERNAL_PATH_ROOTS.has(firstSeg);
+  const p = path?.trim();
+  if (!p) return false;
+  // Home-relative and Windows drive / UNC paths are unambiguously absolute.
+  if (p.startsWith("~")) return true;
+  if (/^[a-zA-Z]:[\\/]/.test(p) || p.startsWith("\\\\")) return true;
+  // POSIX-absolute. `/data` (and `/data/…`) is the cabinet-root alias and is
+  // internal; any other absolute path points outside DATA_DIR.
+  if (p.startsWith("/")) {
+    const rooted = p.replace(/^\/+/, "");
+    return rooted !== "data" && !rooted.startsWith("data/");
+  }
+  return false;
 }

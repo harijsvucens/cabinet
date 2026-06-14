@@ -89,11 +89,34 @@ test("does NOT flag in-cabinet / data-rooted paths as external", () => {
   for (const p of [
     "feedback-tracker/github/contributors.md",
     "data/notes/today.md",
+    "/data/notes/today.md",
+    "/data",
     "kb/reports/foo.md",
     "",
   ]) {
     assert.equal(isExternalArtifactPath(p), false, p);
   }
+});
+
+test("does NOT flag relative paths whose first segment looks like a system dir", () => {
+  // Regression guard: the prior denylist heuristic stripped leading slashes
+  // before matching, so it wrongly flagged these *relative* paths. They're
+  // ordinary cabinet folders (this repo even ships a `dev` cabinet).
+  for (const p of [
+    "dev/notes.md",
+    "var/today.md",
+    "lib/x.md",
+    "home/y.md",
+    "Library/z.md",
+    "Users/w.md",
+  ]) {
+    assert.equal(isExternalArtifactPath(p), false, p);
+  }
+});
+
+test("flags home-relative (~) paths as external", () => {
+  assert.equal(isExternalArtifactPath("~/scratch.md"), true);
+  assert.equal(isExternalArtifactPath("~/.claude/memory/note.md"), true);
 });
 
 test("resolver never prefixes an external path with the cabinet", () => {
