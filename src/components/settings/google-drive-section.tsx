@@ -99,7 +99,8 @@ function FolderPickerDialog({
     void browse(prev);
   };
 
-  const folderName = currentPath.split("/").pop() || currentPath;
+  // basename, handling both POSIX (/) and Windows (\) separators
+  const folderName = currentPath.split(/[\\/]/).pop() || currentPath;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -114,7 +115,7 @@ function FolderPickerDialog({
             <FolderOpen className="h-3.5 w-3.5 shrink-0 text-amber-500" />
             <span className="text-[11px] text-muted-foreground/60 font-mono shrink-0">…/</span>
             <span className="text-[11px] text-muted-foreground font-mono truncate" title={currentPath}>
-              {currentPath.split("/").slice(-2).join("/")}
+              {currentPath.split(/[\\/]/).slice(-2).join("/")}
             </span>
           </div>
 
