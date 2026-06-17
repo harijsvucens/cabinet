@@ -40,7 +40,8 @@ export function ViewerBreadcrumb({
     const filename =
       driveNode?.frontmatter?.title ||
       driveNode?.name ||
-      driveAbsPath.split("/").pop() ||
+      // basename, handling both POSIX (/) and Windows (\) separators
+      driveAbsPath.split(/[\\/]/).pop() ||
       "File";
     return (
       <div className={cn("flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground", className)}>
