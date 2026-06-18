@@ -32,8 +32,16 @@ export async function POST(request: NextRequest) {
        ON CONFLICT(id) DO UPDATE SET email = excluded.email, imap_password = excluded.imap_password, method = 'imap'`
     ).run(email, encrypted);
 
-    // Install the Gmail skill so agents can use email tools immediately.
-    await installGmailSkill();
+    // Install the Gmail skill so agents can use email tools immediately. If
+    // this fails, roll back the just-stored credentials so the persisted state
+    // stays consistent with the error response (otherwise status would report
+    // connected despite this call returning 500).
+    try {
+      await installGmailSkill();
+    } catch (err) {
+      db.prepare("DELETE FROM gmail_credentials WHERE id = 'default'").run();
+      throw err;
+    }
 
     return NextResponse.json({ ok: true, email });
   } catch (error) {

@@ -23,7 +23,7 @@ export type DiffLine = {
 
 const DIFF_START = /^diff --git /;
 const STRUCTURED_RE =
-  /^(SUMMARY|CONTEXT|CONTEXT_UPDATE|ARTIFACT|DECISION|LEARNING|GOAL_UPDATE|MESSAGE_TO|LAUNCH_TASK|SCHEDULE_JOB|SCHEDULE_TASK)\s*(?:\[([^\]]*)\])?:\s*(.*)$/;
+  /^(SUMMARY|CONTEXT|CONTEXT_UPDATE|ARTIFACT|DECISION|LEARNING|GOAL_UPDATE|MESSAGE_TO|LAUNCH_TASK|SCHEDULE_JOB|SCHEDULE_TASK|SEND_EMAIL)\s*(?:\[([^\]]*)\])?:\s*(.*)$/;
 const TOKENS_RE = /^[\d,]+$/;
 
 function preprocess(text: string): string {

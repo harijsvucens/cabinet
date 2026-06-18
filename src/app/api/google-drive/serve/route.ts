@@ -45,7 +45,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid path" }, { status: 400 });
     }
 
-    // Resolve symlinks before the mount check so a symlink inside a mount
+    // Authorize lexically BEFORE touching the filesystem, so an unauthorized
+    // path returns 403 without fs.realpath resolving it and leaking host file
+    // existence via a 404-vs-403 status oracle.
+    const db = getDb();
+    const mounts = db
+      .prepare("SELECT abs_path FROM google_drive_mounts WHERE enabled = 1")
+      .all() as { abs_path: string }[];
+
+    const mountNormalized = mounts.map((m) => path.normalize(m.abs_path));
+    const inMountLexical = mountNormalized.some(
+      (mp) => normalized.startsWith(mp + path.sep) || normalized === mp
+    );
+    if (!inMountLexical) {
+      return NextResponse.json({ error: "Path is not within a mounted folder" }, { status: 403 });
+    }
+
+    // Resolve symlinks and re-check containment so a symlink inside a mount
     // cannot point outside it.
     let realNormalized: string;
     try {
@@ -53,12 +69,6 @@ export async function GET(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
-
-    // Validate against known mounts using real paths.
-    const db = getDb();
-    const mounts = db
-      .prepare("SELECT abs_path FROM google_drive_mounts WHERE enabled = 1")
-      .all() as { abs_path: string }[];
 
     const mountRealpaths = await Promise.all(
       mounts.map(async (m) => {
