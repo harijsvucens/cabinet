@@ -36,7 +36,6 @@ import {
   FilePlus2,
   FolderInput,
   Settings2,
-  Sheet,
   Cloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -70,6 +69,7 @@ import { ConnectKnowledgeDialog } from "./connect-knowledge-dialog";
 import { ConnectDriveDialog } from "./connect-drive-dialog";
 import { providerLogo } from "@/lib/knowledge-sources/providers";
 import type { KnowledgeProviderId } from "@/lib/knowledge-sources/store";
+import { GoogleNodeIcon } from "./google-node-icon";
 import { NewCabinetDialog } from "./new-cabinet-dialog";
 import { NewFileDialog } from "./new-file-dialog";
 import { EditSymlinkDialog } from "./edit-symlink-dialog";
@@ -102,25 +102,6 @@ const ANIMATION_CHILD_SIBLING_MS = 14;
 // otherwise show the generic page icon. Give them a kind-matching icon (doc /
 // sheet / slides, same family as the local Office icons) with a small "g"
 // badge so they read as Google at a glance.
-function GoogleNodeIcon({ kind }: { kind?: string }) {
-  const Icon =
-    kind === "sheets" ? Sheet : kind === "slides" ? Presentation : FileText;
-  const color =
-    kind === "sheets"
-      ? "text-green-600"
-      : kind === "slides"
-        ? "text-yellow-500"
-        : "text-blue-500";
-  return (
-    <span className="relative inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-      <Icon className={cn("h-3.5 w-3.5", color)} />
-      <span className="absolute -bottom-1.5 -end-1.5 rounded-[3px] bg-background px-[1.5px] text-[8px] font-bold leading-[1.2] text-foreground/70">
-        g
-      </span>
-    </span>
-  );
-}
-
 function TreeNodeImpl({
   node,
   depth,

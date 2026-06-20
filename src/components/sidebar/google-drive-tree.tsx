@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Cloud, ChevronRight, ChevronDown, Folder, Loader2, FolderOpen, ClipboardCopy } from "lucide-react";
+import { Cloud, ChevronRight, ChevronDown, Folder, Loader2, FolderOpen, ClipboardCopy, FileText } from "lucide-react";
+import { GoogleNodeIcon } from "./google-node-icon";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import type { TreeNode, GoogleDriveSection } from "@/types";
@@ -134,15 +135,11 @@ function DriveNode({ node, depth, padFn, expandedPaths, onToggle, cabinetPath }:
         {isLoading ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/60" />
         ) : isDir ? (
-          <Folder className="h-3.5 w-3.5 shrink-0 text-amber-500/80" />
-        ) : node.frontmatter?.google?.kind === "docs" ? (
-          <span className="text-[10px] shrink-0">📄</span>
-        ) : node.frontmatter?.google?.kind === "sheets" ? (
-          <span className="text-[10px] shrink-0">📊</span>
-        ) : node.frontmatter?.google?.kind === "slides" ? (
-          <span className="text-[10px] shrink-0">📑</span>
+          <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        ) : node.frontmatter?.google ? (
+          <GoogleNodeIcon kind={node.frontmatter.google.kind} />
         ) : (
-          <span className="text-[10px] shrink-0">📄</span>
+          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         )}
 
         <span className="min-w-0 flex-1 truncate text-start">
