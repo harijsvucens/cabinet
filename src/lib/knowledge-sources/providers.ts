@@ -22,7 +22,7 @@ export interface KnowledgeProviderMeta {
 export const KNOWLEDGE_PROVIDERS: KnowledgeProviderMeta[] = [
   { id: "local", label: "Local folder", enabled: true, defaultPolicy: "read-write" },
   { id: "google-drive", label: "Google Drive", enabled: true, defaultPolicy: "read-only", logo: "/logos/google-drive.svg" },
-  { id: "icloud", label: "iCloud Drive", enabled: true, defaultPolicy: "read-only" },
+  { id: "icloud", label: "iCloud Drive", enabled: true, defaultPolicy: "read-only", logo: "/logos/icloud.svg" },
   { id: "onedrive", label: "OneDrive", enabled: true, defaultPolicy: "read-only", logo: "/logos/onedrive.svg" },
   { id: "sharepoint", label: "SharePoint", enabled: true, defaultPolicy: "read-only", logo: "/logos/sharepoint.svg" },
   { id: "dropbox", label: "Dropbox", enabled: true, defaultPolicy: "read-only", logo: "/logos/dropbox.webp" },
@@ -63,7 +63,7 @@ export interface ConnectKnowledgeTile {
 export const CONNECT_KNOWLEDGE_TILES: ConnectKnowledgeTile[] = [
   { key: "local", label: "Local folder", kind: "local" },
   { key: "google-drive", label: "Google Drive", kind: "cloud", provider: "google-drive", logo: "/logos/google-drive.svg" },
-  { key: "icloud", label: "iCloud Drive", kind: "cloud", provider: "icloud" },
+  { key: "icloud", label: "iCloud Drive", kind: "cloud", provider: "icloud", logo: "/logos/icloud.svg" },
   { key: "onedrive", label: "OneDrive", kind: "cloud", provider: "onedrive", logo: "/logos/onedrive.svg" },
   { key: "sharepoint", label: "SharePoint", kind: "cloud", provider: "sharepoint", logo: "/logos/sharepoint.svg" },
   { key: "dropbox", label: "Dropbox", kind: "cloud", provider: "dropbox", logo: "/logos/dropbox.webp" },
