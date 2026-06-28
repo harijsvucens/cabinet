@@ -19,6 +19,7 @@ import { markdownToHtml } from "@/lib/markdown/to-html";
 import { htmlToMarkdown } from "@/lib/markdown/to-markdown";
 import { slugifyPageName } from "@/lib/markdown/wiki-links";
 import { detectEmbed } from "@/lib/embeds/detect";
+import { openLocalFileUrl } from "@/lib/runtime/open-local-file";
 import { openUrlInAppropriateContext } from "@/lib/runtime/open-url";
 import { cellAround, isInTable } from "@tiptap/pm/tables";
 import type { TreeNode } from "@/types";
@@ -280,9 +281,10 @@ export function KBEditor() {
             return true;
           }
 
-          // Internal links: relative paths to .md files or other KB pages.
-          // Skip API asset links (PDFs, images); open external URLs in built-in browser.
+          // Skip API asset links (PDFs, images); they load directly.
           if (href.startsWith("/api/")) return false;
+
+          // External links: open in the built-in browser.
           if (/^https?:\/\//.test(href) || href.startsWith("//")) {
             event.preventDefault();
             event.stopPropagation();
@@ -291,6 +293,9 @@ export function KBEditor() {
             );
             return true;
           }
+
+          // Local file links: open with the OS default app (Electron) or
+          // surface the path (browser). file:// can't load in a webview.
           if (href.startsWith("file://")) {
             event.preventDefault();
             event.stopPropagation();
@@ -298,9 +303,7 @@ export function KBEditor() {
             const encoded = pathPart.includes("%20") || !pathPart.includes(" ")
               ? href
               : "file://" + encodeURI(pathPart);
-            openUrlInAppropriateContext(encoded, (url) =>
-              useAppStore.getState().setAppMode("browse", url)
-            );
+            openLocalFileUrl(encoded);
             return true;
           }
           if (href.startsWith("mailto:") || href.startsWith("tel:")) return false;

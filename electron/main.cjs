@@ -709,6 +709,11 @@ async function openRoomWindow(suffix) {
 
 ipcMain.handle("cabinet:open-window", (_event, suffix) => openRoomWindow(suffix));
 
+// Note: the "cabinet:open-local-file" IPC handler lives in browser-views.cjs
+// (registerHandlers); it's shared by editor file:// links and browse mode, and
+// adds a same-renderer auth check. Don't register a second handler here —
+// ipcMain.handle throws on a duplicate channel.
+
 app.on("window-all-closed", () => {
   destroyAllBrowserViews();
   cleanupBackends();

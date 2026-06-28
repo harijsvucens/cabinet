@@ -31,8 +31,6 @@ contextBridge.exposeInMainWorld("CabinetDesktop", {
   runtime: "electron",
   platform: process.platform,
   // --- In-app browser ("browse mode") backed by a native WebContentsView ---
-  openLocalFile: (filePath) =>
-    ipcRenderer.invoke("cabinet:open-local-file", { path: filePath }),
   createBrowserView: async (url) => {
     try {
       return await ipcRenderer.invoke("cabinet:create-browser-view", {
@@ -87,6 +85,11 @@ contextBridge.exposeInMainWorld("CabinetDesktop", {
    * cabinet content is preserved.
    */
   uninstallApp: () => ipcRenderer.invoke("cabinet:uninstall-app"),
+  /**
+   * Open a local file with the OS default application. Used for file://
+   * links clicked in the editor (e.g. open a PDF in Preview).
+   */
+  openLocalFile: (filePath) => ipcRenderer.invoke("cabinet:open-local-file", { path: filePath }),
   /**
    * The OS keyboard / input languages, most-preferred first, plus the
    * Electron app + system locale. Used on the first onboarding screen to
