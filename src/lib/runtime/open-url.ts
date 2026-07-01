@@ -3,6 +3,7 @@
 interface CabinetDesktopBridge {
   runtime?: "electron";
   openLocalFile?: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  openExternal?: (url: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 function getBridge(): CabinetDesktopBridge {
@@ -60,4 +61,33 @@ export function openUrlInAppropriateContext(
     // window.opener and navigating/altering this app.
     window.open(url, "_blank", "noopener,noreferrer");
   }
+}
+
+/**
+ * Force an http(s) URL into the user's SYSTEM default browser, bypassing the
+ * in-app browse view. Use this for OAuth sign-in links: the embedded browser
+ * doesn't carry the user's provider session, and providers like Google/Slack
+ * often refuse to authorize inside a webview. In the web build there's no
+ * in-app browser anyway, so this is just a normal new-tab open.
+ */
+export function openExternalUrl(url: string): void {
+  let externalUrl: URL;
+  try {
+    externalUrl = new URL(url);
+  } catch {
+    return;
+  }
+  // Guard both paths, not just the Electron bridge — the web build (or a
+  // missing bridge) falls through to window.open, which would otherwise let a
+  // custom protocol handler fire straight from an "OAuth" link.
+  if (externalUrl.protocol !== "http:" && externalUrl.protocol !== "https:") {
+    return;
+  }
+
+  const bridge = getBridge();
+  if (bridge.runtime === "electron" && bridge.openExternal) {
+    void bridge.openExternal(externalUrl.toString());
+    return;
+  }
+  window.open(externalUrl.toString(), "_blank", "noopener,noreferrer");
 }

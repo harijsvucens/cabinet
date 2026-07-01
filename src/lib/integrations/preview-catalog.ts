@@ -679,6 +679,7 @@ const LAUNCHED = new Set([
   "microsoft-365",
   "microsoft-teams",
   "notion",
+  "slack",
 ]);
 
 export const PREVIEW_INTEGRATIONS: IntegrationItem[] = RAW_INTEGRATIONS.map((i) => {

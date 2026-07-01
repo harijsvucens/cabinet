@@ -5,6 +5,7 @@ import { Check, ChevronDown, Loader2, ExternalLink, ShieldCheck, X } from "lucid
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { showError, showSuccess } from "@/lib/ui/toast";
+import { openExternalUrl } from "@/lib/runtime/open-url";
 import type { IntegrationItem } from "@/lib/integrations/preview-catalog";
 
 /**
@@ -472,13 +473,23 @@ export function ConnectPanel({
       showError("Pick at least one environment.");
       return;
     }
+    if (missingRequired) {
+      showError("Enter the required credentials first.");
+      return;
+    }
     stopPolling();
     setOauthLogin({ state: "starting" });
     try {
       const reg = await fetch("/api/agents/config/mcp-catalog/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: entry.id, providers: [...targets] }),
+        body: JSON.stringify({
+          id: entry.id,
+          providers: [...targets],
+          // Confidential-client servers (Slack) need the pasted id/secret saved
+          // before sign-in so the CLI can register the OAuth client.
+          credentials: needsCreds ? creds : undefined,
+        }),
       });
       const regJson = await reg.json();
       if (!reg.ok || !regJson.ok)
@@ -704,8 +715,12 @@ export function ConnectPanel({
               </p>
               <a
                 href={msLogin.url}
-                target="_blank"
-                rel="noreferrer"
+                onClick={(e) => {
+                  // OAuth must run in the system browser, not the in-app browse
+                  // view (which lacks the user's Microsoft session).
+                  e.preventDefault();
+                  if (msLogin.url) openExternalUrl(msLogin.url);
+                }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent"
               >
                 Open Microsoft sign-in <ExternalLink className="h-3.5 w-3.5" />
@@ -757,8 +772,13 @@ export function ConnectPanel({
               </p>
               <a
                 href={oauthLogin.url}
-                target="_blank"
-                rel="noreferrer"
+                onClick={(e) => {
+                  // OAuth must run in the system browser, not the in-app browse
+                  // view (which lacks the user's provider session and may be
+                  // rejected as a webview).
+                  e.preventDefault();
+                  if (oauthLogin.url) openExternalUrl(oauthLogin.url);
+                }}
                 className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent"
               >
                 Open {item.name} sign-in <ExternalLink className="h-3.5 w-3.5" />
@@ -803,7 +823,12 @@ export function ConnectPanel({
           ) : (
             <Button
               className="w-full"
-              disabled={targets.size === 0 || oauthLogin.state === "starting" || busy}
+              disabled={
+                targets.size === 0 ||
+                missingRequired ||
+                oauthLogin.state === "starting" ||
+                busy
+              }
               onClick={startOauthLogin}
             >
               {oauthLogin.state === "starting" || busy ? (
