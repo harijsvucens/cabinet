@@ -138,16 +138,6 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     implemented: false,
     actions: ["Fetch meeting transcripts", "Summarise calls", "Track action items"],
   },
-  {
-    id: "google-meet",
-    name: "Google Meet",
-    category: "communication",
-    logo: L("google-meet.svg"),
-    blurb: "Capture meeting notes and recaps automatically.",
-    brand: "#00897b",
-    implemented: false,
-    actions: ["Fetch recordings", "Summarise meetings", "Extract decisions"],
-  },
 
   // ── Social ──────────────────────────────────────────────────────
   {
@@ -278,10 +268,10 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     name: "Google Workspace",
     category: "productivity",
     logo: "/integrations/google-workspace-logo.webp",
-    blurb: "Connect Gmail, Drive, Docs, and Calendar in one grant.",
+    blurb: "Calendar, Contacts, Docs, Sheets, Slides, Tasks, Forms, Chat and Search via one sign-in. (Gmail and Drive have their own cards.)",
     brand: "#4285f4",
     implemented: true,
-    actions: ["Read & draft email", "Search Drive", "Manage calendar events"],
+    actions: ["Calendar & Contacts", "Docs, Sheets & Slides", "Tasks, Forms, Chat & Search"],
   },
   {
     id: "microsoft-365",
@@ -338,10 +328,10 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     name: "Google Calendar",
     category: "productivity",
     logo: L("google-calendar.svg"),
-    blurb: "Read your agenda and schedule on your behalf.",
+    blurb: "Read your agenda and schedule on your behalf. (Connects through Google Workspace.)",
     brand: "#4285f4",
-    implemented: false,
-    actions: ["Read agenda", "Create events", "Find free slots"],
+    implemented: true,
+    actions: ["Read agenda", "Create & update events", "Find free slots"],
   },
   {
     id: "gmail",
@@ -698,11 +688,12 @@ const CONNECTABLE = new Set(MCP_CATALOG.map((e) => e.id));
 // Sub-products that connect through a suite's single OAuth (no separate server).
 const COVERED_BY: Record<string, string> = {
   gmail: "google-workspace",
+  // Calendar is served by the Google Workspace MCP, so its card connects the
+  // Workspace suite (single OAuth) rather than a server of its own.
   "google-calendar": "google-workspace",
   // NOTE: "google-drive" is intentionally NOT covered by google-workspace —
   // it's a Cabinet-native (Drive for Desktop) integration with its own UI,
-  // distinct from the future OAuth-based Workspace MCP. See `native` above.
-  "google-meet": "google-workspace",
+  // distinct from the Workspace MCP. See `native` above.
   "microsoft-teams": "microsoft-365",
   onedrive: "microsoft-365",
   sharepoint: "microsoft-365",
@@ -718,6 +709,8 @@ const LAUNCHED = new Set([
   "discord",
   "google-drive",
   "gmail",
+  "google-workspace",
+  "google-calendar",
   "microsoft-365",
   "microsoft-teams",
   "notion",

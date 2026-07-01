@@ -46,6 +46,8 @@ interface CatalogItem {
   credentials: Credential[];
   credentialStatus: Record<string, { hasValue: boolean; lastFour: string }>;
   sourceUrl: string;
+  /** Connect-time sign-in style: http (via Claude), stdio (daemon-run), or none. */
+  signinKind?: "http" | "stdio" | null;
 }
 interface Payload {
   providers: ProviderInfo[];
@@ -285,8 +287,12 @@ export function ConnectPanel({
   // Claude Code (it's the CLI we drive). When it's unchecked we fall back to the
   // deferred (first agent use) flow. M365 has its own device-code path above.
   const claudeSelected = targets.has("claude-code");
+  // stdio connect-time sign-in is run by the daemon itself (it spawns the
+  // server), so it needs no specific CLI. HTTP sign-in is driven through Claude
+  // Code, so it requires Claude to be selected.
   const canConnectTimeSignin =
-    entry.transport === "http" && !isM365 && claudeSelected;
+    entry.signinKind === "stdio" ||
+    (entry.signinKind === "http" && !isM365 && claudeSelected);
 
   const toggle = (id: string) =>
     setTargets((prev) => {
@@ -486,8 +492,9 @@ export function ConnectPanel({
         body: JSON.stringify({
           id: entry.id,
           providers: [...targets],
-          // Confidential-client servers (Slack) need the pasted id/secret saved
-          // before sign-in so the CLI can register the OAuth client.
+          // Persist credentials first (e.g. Google OAuth client ID/secret/email,
+          // or a confidential-client Slack id/secret) so the connect-time
+          // sign-in can read them from .cabinet.env.
           credentials: needsCreds ? creds : undefined,
         }),
       });
@@ -770,19 +777,21 @@ export function ConnectPanel({
               <p className="text-[12px] font-medium text-foreground">
                 Approve access in your browser
               </p>
-              <a
-                href={oauthLogin.url}
-                onClick={(e) => {
-                  // OAuth must run in the system browser, not the in-app browse
-                  // view (which lacks the user's provider session and may be
-                  // rejected as a webview).
-                  e.preventDefault();
+              <button
+                type="button"
+                onClick={() => {
+                  // OAuth must run in the system default browser, not the in-app
+                  // browse view (which lacks the user's provider session and may
+                  // be rejected as a webview). A button keeps this routed solely
+                  // through openExternalUrl — an anchor's href could still be
+                  // activated through normal link navigation.
                   if (oauthLogin.url) openExternalUrl(oauthLogin.url);
                 }}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent"
+                disabled={!oauthLogin.url}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-[13px] font-medium text-foreground hover:bg-accent disabled:opacity-50"
               >
                 Open {item.name} sign-in <ExternalLink className="h-3.5 w-3.5" />
-              </a>
+              </button>
               <p className="mt-3 flex items-center gap-1.5 text-[12px] text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Waiting for you to
                 finish…
@@ -860,7 +869,7 @@ export function ConnectPanel({
         </Button>
       )}
 
-      {entry.transport === "http" && !isM365 && authState === "authenticated" && (
+      {entry.signinKind != null && !isM365 && authState === "authenticated" && (
         <p className="mt-2 flex items-center gap-1.5 text-[12px] text-emerald-600 dark:text-emerald-400">
           <Check className="h-3.5 w-3.5 shrink-0" /> Signed in — ready for your agents.
         </p>
@@ -877,7 +886,7 @@ export function ConnectPanel({
         </button>
       )}
 
-      {entry.transport === "http" && !isM365 && !canConnectTimeSignin && !isConnected && (
+      {entry.signinKind === "http" && !isM365 && !canConnectTimeSignin && !isConnected && (
         <p className="mt-3 flex items-start gap-1.5 text-[11px] text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-3 w-3 shrink-0" />
           Select Claude Code above to sign in now. Otherwise the CLI prompts for

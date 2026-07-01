@@ -70,24 +70,26 @@ export function openUrlInAppropriateContext(
  * often refuse to authorize inside a webview. In the web build there's no
  * in-app browser anyway, so this is just a normal new-tab open.
  */
-export function openExternalUrl(url: string): void {
-  let externalUrl: URL;
+function toHttpExternalUrl(url: string): string | null {
   try {
-    externalUrl = new URL(url);
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
   } catch {
-    return;
+    return null;
   }
-  // Guard both paths, not just the Electron bridge — the web build (or a
-  // missing bridge) falls through to window.open, which would otherwise let a
-  // custom protocol handler fire straight from an "OAuth" link.
-  if (externalUrl.protocol !== "http:" && externalUrl.protocol !== "https:") {
-    return;
-  }
+}
+
+export function openExternalUrl(url: string): void {
+  // Validate once so both paths are guarded — window.open would otherwise honor
+  // custom schemes or javascript: URLs that the Electron IPC already rejects.
+  const externalUrl = toHttpExternalUrl(url);
+  if (!externalUrl) return;
 
   const bridge = getBridge();
   if (bridge.runtime === "electron" && bridge.openExternal) {
-    void bridge.openExternal(externalUrl.toString());
+    void bridge.openExternal(externalUrl);
     return;
   }
-  window.open(externalUrl.toString(), "_blank", "noopener,noreferrer");
+  window.open(externalUrl, "_blank", "noopener,noreferrer");
 }
