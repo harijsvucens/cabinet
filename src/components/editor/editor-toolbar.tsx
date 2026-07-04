@@ -40,7 +40,7 @@ import {
   UnfoldHorizontal,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ColorPalette } from "./color-palette";
 import { TEXT_COLORS, HIGHLIGHT_COLORS } from "./extensions/color-highlight";
 import { MediaPopover, type MediaKind } from "./media-popover";
@@ -78,6 +78,7 @@ interface ToolButtonProps {
   active?: boolean;
   disabled?: boolean;
   style?: React.CSSProperties;
+  tabIndex?: number;
   onAction: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -85,14 +86,16 @@ interface ToolButtonProps {
  * Plain toolbar button that preserves the editor selection via mousedown
  * preventDefault, then invokes the action on click.
  */
-function ToolButton({ label, icon: Icon, active, disabled, style, onAction }: ToolButtonProps) {
+function ToolButton({ label, icon: Icon, active, disabled, style, tabIndex, onAction }: ToolButtonProps) {
   return (
     <button
       type="button"
       aria-label={label}
+      aria-pressed={active}
       title={label}
       disabled={disabled}
       style={style}
+      tabIndex={tabIndex}
       onMouseDown={(e) => {
         e.preventDefault();
       }}
@@ -101,11 +104,11 @@ function ToolButton({ label, icon: Icon, active, disabled, style, onAction }: To
         onAction(e);
       }}
       className={cn(
-        "h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md text-foreground/80 hover:bg-accent transition-colors disabled:opacity-40",
+        "h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground transition-colors disabled:opacity-40",
         active && "bg-accent text-foreground ring-1 ring-inset ring-foreground/15"
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5" />
     </button>
   );
 }
@@ -122,19 +125,36 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  // Roving tabindex: exactly one toolbar button is tabbable at a time (#018).
+  const [rovingIndex, setRovingIndex] = useState(0);
 
-  // Force re-render on selection/transaction changes so isActive() reflects the
-  // current cursor position (the editor object reference is stable so React
-  // won't re-render automatically when the internal state changes).
+  // Re-render on selection/mark changes so isActive() reflects the cursor (the
+  // editor object reference is stable, so React won't re-render on its own).
+  // Coalesce into one render per frame and ignore transactions that changed
+  // neither the doc nor the selection — decoration / autosave / plugin meta
+  // ticks fire constantly but never alter a toolbar active state, so
+  // re-rendering the ~35 buttons for them is pure waste (#019).
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!editor) return;
-    const bump = () => setTick((t) => t + 1);
-    editor.on("selectionUpdate", bump);
-    editor.on("transaction", bump);
+    let raf = 0;
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setTick((t) => t + 1);
+      });
+    };
+    const onSelection = () => schedule();
+    const onTransaction = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+      if (transaction.docChanged) schedule();
+    };
+    editor.on("selectionUpdate", onSelection);
+    editor.on("transaction", onTransaction);
     return () => {
-      editor.off("selectionUpdate", bump);
-      editor.off("transaction", bump);
+      if (raf) cancelAnimationFrame(raf);
+      editor.off("selectionUpdate", onSelection);
+      editor.off("transaction", onTransaction);
     };
   }, [editor]);
 
@@ -164,14 +184,36 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
     };
   }, [editor, updateScrollState]);
 
-  // Translate vertical wheel to horizontal scroll
+  // Steer the wheel into the strip only for a horizontal gesture on an
+  // overflowing toolbar; a vertical wheel bubbles to the page scroller so it
+  // scrolls the page instead of dragging the icon strip sideways (#020).
   const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
     if (!el) return;
-    // Only intercept vertical deltas; respect native horizontal wheel devices
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      el.scrollLeft += e.deltaY;
-    }
+    if (!canScrollLeft && !canScrollRight) return;
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    el.scrollLeft += e.deltaX;
+  };
+
+  // Roving tabindex: the toolbar is a single Tab stop; Left/Right (mirrored in
+  // RTL) + Home/End move focus between the icon buttons (#018).
+  const onToolbarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const buttons = Array.from(el.querySelectorAll<HTMLButtonElement>("button"));
+    if (buttons.length === 0) return;
+    e.preventDefault();
+    const current = buttons.findIndex((b) => b === document.activeElement);
+    const forward = isUiRtl ? "ArrowLeft" : "ArrowRight";
+    const backward = isUiRtl ? "ArrowRight" : "ArrowLeft";
+    let next = current < 0 ? 0 : current;
+    if (e.key === forward) next = current < 0 ? 0 : (current + 1) % buttons.length;
+    else if (e.key === backward) next = current < 0 ? buttons.length - 1 : (current - 1 + buttons.length) % buttons.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = buttons.length - 1;
+    buttons[next]?.focus();
+    setRovingIndex(next);
   };
 
   const scrollBy = (dir: -1 | 1) => {
@@ -375,7 +417,7 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
 
   return (
     <>
-      <div className="relative flex items-stretch border-b border-border bg-background/50">
+      <div className="relative flex w-full items-stretch">
         <div className="relative flex-1 min-w-0">
           {/* Scroll indicator arrows */}
           {!sourceMode && canScrollLeft && (
@@ -384,7 +426,7 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
               aria-label={t("editor:toolbar.scrollLeft")}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => scrollBy(-1)}
-              className="absolute left-0 rtl:left-auto rtl:right-0 top-0 bottom-0 w-6 z-10 flex items-center justify-start rtl:justify-end ps-0.5 bg-gradient-to-r rtl:bg-gradient-to-l from-background via-background/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute left-0 rtl:left-auto rtl:right-0 top-0 bottom-0 w-6 z-10 flex items-center justify-start rtl:justify-end ps-0.5 bg-gradient-to-r rtl:bg-gradient-to-l from-[var(--gutter)] via-[var(--gutter)]/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
             >
               <DirIcon ltr={ChevronLeft} rtl={ChevronRight} className="h-4 w-4" />
             </button>
@@ -395,7 +437,7 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
               aria-label={t("editor:toolbar.scrollRight")}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => scrollBy(1)}
-              className="absolute right-0 rtl:right-auto rtl:left-0 top-0 bottom-0 w-6 z-10 flex items-center justify-end rtl:justify-start pe-0.5 bg-gradient-to-l rtl:bg-gradient-to-r from-background via-background/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-0 rtl:right-auto rtl:left-0 top-0 bottom-0 w-6 z-10 flex items-center justify-end rtl:justify-start pe-0.5 bg-gradient-to-l rtl:bg-gradient-to-r from-[var(--gutter)] via-[var(--gutter)]/80 to-transparent text-muted-foreground hover:text-foreground transition-colors"
             >
               <DirIcon ltr={ChevronRight} rtl={ChevronLeft} className="h-4 w-4" />
             </button>
@@ -403,33 +445,43 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
           {!sourceMode && (
             <div
               ref={scrollRef}
+              role="toolbar"
+              aria-label="Formatting"
+              aria-orientation="horizontal"
               onWheel={onWheel}
-              className="flex items-center gap-0.5 px-2 pt-1 pb-1.5 overflow-x-scroll overflow-y-hidden editor-toolbar-scroll"
+              onKeyDown={onToolbarKeyDown}
+              className="flex items-center gap-0.5 px-2 pt-1 pb-1.5 overflow-x-scroll overflow-y-hidden editor-toolbar-scroll [mask-image:linear-gradient(to_right,#000,#000_86%,transparent)] [-webkit-mask-image:linear-gradient(to_right,#000,#000_86%,transparent)]"
             >
-              {[...primaryItems, { separator: true } as ButtonSpec, ...secondaryItems].map((item, i) => {
-                if ("separator" in item) {
+              {(() => {
+                let btn = -1;
+                return [...primaryItems, { separator: true } as ButtonSpec, ...secondaryItems].map((item, i) => {
+                  if ("separator" in item) {
+                    return (
+                      <Separator key={i} orientation="vertical" className="mx-1 h-5 shrink-0" />
+                    );
+                  }
+                  btn += 1;
+                  const idx = btn;
                   return (
-                    <Separator key={i} orientation="vertical" className="mx-1 h-6 shrink-0" />
+                    <ToolButton
+                      key={i}
+                      label={item.label}
+                      icon={item.icon}
+                      active={item.isActive}
+                      style={item.style}
+                      tabIndex={idx === rovingIndex ? 0 : -1}
+                      onAction={item.action}
+                    />
                   );
-                }
-                return (
-                  <ToolButton
-                    key={i}
-                    label={item.label}
-                    icon={item.icon}
-                    active={item.isActive}
-                    style={item.style}
-                    onAction={item.action}
-                  />
-                );
-              })}
+                });
+              })()}
             </div>
           )}
         </div>
         {/* Pinned, non-scrolling source/preview toggle — always reachable
             regardless of how far the formatting row is scrolled. */}
         <div className="shrink-0 flex items-center gap-1 ps-1 pe-2">
-          <Separator orientation="vertical" className="h-6" />
+          <Separator orientation="vertical" className="h-5" />
           {!sourceMode && (
             <ToolButton
               label={wideMode ? t("editor:toolbar.normalWidth") : t("editor:toolbar.wideMode")}
@@ -443,23 +495,20 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
             onMouseDown={(e) => e.preventDefault()}
             onClick={onToggleSource}
             className={cn(
-              "flex items-center gap-1.5 h-8 shrink-0 px-2.5 text-xs rounded-md transition-colors",
+              "flex items-center gap-1.5 h-7 shrink-0 px-2 text-[11px] rounded-md transition-colors",
               sourceMode
                 ? "bg-accent text-foreground ring-1 ring-inset ring-foreground/15"
-                : "text-foreground/80 hover:bg-accent"
+                : "text-muted-foreground/70 hover:bg-accent hover:text-foreground"
             )}
           >
-            <Code2 className="h-4 w-4" />
+            <Code2 className="h-3.5 w-3.5" />
             {sourceMode ? t("editor:toolbar.preview") : t("editor:toolbar.markdown")}
           </button>
         </div>
       </div>
 
       {popover && (popover.type === "color" || popover.type === "highlight") && (
-        <div
-          data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
-        >
+        <PopoverContainer anchor={popover.anchor}>
           <div className="bg-popover border border-border rounded-md shadow-lg">
             {popover.type === "color" ? (
               <ColorPalette
@@ -479,14 +528,11 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
               />
             )}
           </div>
-        </div>
+        </PopoverContainer>
       )}
 
       {popover?.type === "link" && (
-        <div
-          data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
-        >
+        <PopoverContainer anchor={popover.anchor}>
           <LinkPopover
             anchor={{ top: 0, left: 0 }}
             initialUrl={popover.existing}
@@ -494,14 +540,11 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
             onApply={applyLink}
             onRemove={popover.existing ? removeLink : undefined}
           />
-        </div>
+        </PopoverContainer>
       )}
 
       {popover?.type === "media" && pagePath && (
-        <div
-          data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
-        >
+        <PopoverContainer anchor={popover.anchor}>
           <MediaPopover
             kind={popover.kind}
             pagePath={pagePath}
@@ -509,20 +552,17 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
             onCancel={() => setPopover(null)}
             onInsert={(payload) => insertMedia(popover.kind, payload)}
           />
-        </div>
+        </PopoverContainer>
       )}
 
       {popover?.type === "embed" && (
-        <div
-          data-editor-popover="true"
-          style={{ position: "fixed", top: popover.anchor.top, left: popover.anchor.left, right: popover.anchor.right, zIndex: 60 }}
-        >
+        <PopoverContainer anchor={popover.anchor}>
           <EmbedPopover
             anchor={{ top: 0, left: 0 }}
             onCancel={() => setPopover(null)}
             onInsert={insertEmbed}
           />
-        </div>
+        </PopoverContainer>
       )}
 
       {popover && <ClickOutsideClose onClose={() => setPopover(null)} />}
@@ -530,8 +570,52 @@ export function EditorToolbar({ editor, sourceMode, onToggleSource, wideMode, on
   );
 }
 
+/**
+ * Fixed-position wrapper for a toolbar popover that clamps itself back inside
+ * the viewport after mounting, so a popover opened from a button near the
+ * right/bottom edge can't overflow offscreen and become unreachable (#021).
+ */
+function PopoverContainer({ anchor, children }: { anchor: Anchor; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<Anchor>(anchor);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const next: Anchor = { top: anchor.top };
+    if (anchor.left != null) {
+      next.left = Math.max(margin, Math.min(anchor.left, vw - margin - rect.width));
+    } else if (anchor.right != null) {
+      next.right = Math.max(margin, Math.min(anchor.right, vw - margin - rect.width));
+    }
+    // Clamp up when the popover would run past the bottom edge.
+    if (anchor.top + rect.height > vh - margin) {
+      next.top = Math.max(margin, vh - margin - rect.height);
+    }
+    // Repositioning after measuring the rendered size is the entire purpose of
+    // this layout effect, so the state write here is intentional, not a loop.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPos(next);
+  }, [anchor]);
+  return (
+    <div
+      ref={ref}
+      data-editor-popover="true"
+      style={{ position: "fixed", top: pos.top, left: pos.left, right: pos.right, zIndex: 60 }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function ClickOutsideClose({ onClose }: { onClose: () => void }) {
   useEffect(() => {
+    // Keep the listener-remover in this effect's own closure — a shared global
+    // slot would let a second popover clobber the first's cleanup (#022).
+    let remove: (() => void) | null = null;
     // Give the opening click a tick to settle before listening.
     const mount = window.setTimeout(() => {
       const handle = (e: MouseEvent) => {
@@ -540,17 +624,11 @@ function ClickOutsideClose({ onClose }: { onClose: () => void }) {
         onClose();
       };
       window.addEventListener("mousedown", handle);
-      // Return cleanup via outer closure: store it on element
-      (window as unknown as { __cabinetPopClose?: () => void }).__cabinetPopClose = () =>
-        window.removeEventListener("mousedown", handle);
+      remove = () => window.removeEventListener("mousedown", handle);
     }, 10);
     return () => {
       window.clearTimeout(mount);
-      const w = window as unknown as { __cabinetPopClose?: () => void };
-      if (w.__cabinetPopClose) {
-        w.__cabinetPopClose();
-        w.__cabinetPopClose = undefined;
-      }
+      remove?.();
     };
   }, [onClose]);
   return null;

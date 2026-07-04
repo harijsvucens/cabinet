@@ -3,10 +3,11 @@
 import { useMemo, type ReactNode } from "react";
 import { Archive, Globe } from "lucide-react";
 import { HeaderActions } from "@/components/layout/header-actions";
-import { VersionHistory } from "@/components/editor/version-history";
+import { ToolbarButton } from "@/components/layout/toolbar-button";
 import { ReturnToChip } from "@/components/layout/return-to-chip";
 import { ViewerBreadcrumb } from "@/components/layout/viewer-breadcrumb";
 import { NewTaskButton } from "@/components/composer/new-task-button";
+import { TaskRailToggle } from "@/components/tasks/rail/task-rail-toggle";
 import { useAppStore } from "@/stores/app-store";
 import { useTreeStore } from "@/stores/tree-store";
 import { useLocale } from "@/i18n/use-locale";
@@ -86,29 +87,25 @@ export function ViewerToolbar({
   const modeButtons = !showModeButtons ? null : appMode === "browse" ? (
     // Always offer the exit affordance while browsing, regardless of which node
     // is selected (you may have entered browse from a link in a markdown page).
-    <button
-      aria-label={t("editor:header.editMode")}
-      title={t("editor:header.editMode")}
+    <ToolbarButton
+      icon={Archive}
+      label={t("editor:header.editMode")}
+      iconOnly
       onClick={() => setAppMode("edit")}
-      className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-    >
-      <Archive className="h-4 w-4" />
-    </button>
+    />
   ) : isBrowsable ? (
-    <button
-      aria-label={t("editor:header.browseMode")}
-      title={t("editor:header.browseMode")}
+    <ToolbarButton
+      icon={Globe}
+      label={t("editor:header.browseMode")}
+      iconOnly
       onClick={() => setAppMode("browse", browseModeUrl)}
-      className="inline-flex items-center justify-center rounded-md h-7 w-7 hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-    >
-      <Globe className="h-4 w-4" />
-    </button>
+    />
   ) : null;
 
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-background px-4 py-2 transition-[padding] duration-200 md:h-12 md:py-0",
+        "flex shrink-0 items-center justify-between gap-x-3 gap-y-2 px-3 py-1.5 transition-[padding] duration-200 md:h-10 md:py-0",
         className
       )}
       style={{ paddingInlineStart: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
@@ -130,11 +127,12 @@ export function ViewerToolbar({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {children}
-        {/* File History on every viewer, not just the markdown editor. */}
-        {path ? <VersionHistory path={path} /> : null}
+        {/* File history moved to the sidebar right-click menu — the toolbar
+            stays minimal so the content leads. */}
         {modeButtons}
         <HeaderActions />
         <NewTaskButton />
+        <TaskRailToggle />
       </div>
     </div>
   );

@@ -8,7 +8,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  Archive,
   Blocks,
+  ChevronDown,
   PanelLeftClose,
   PanelLeft,
   Plus,
@@ -18,6 +20,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { NavArrows } from "@/components/layout/nav-arrows";
 import { RoomSwitcher } from "./room-switcher";
 import { TreeView } from "./tree-view";
@@ -78,6 +86,9 @@ export function Sidebar() {
       ? section.cabinetPath
       : defaultRoom || "";
   const [refreshing, setRefreshing] = useState(false);
+  // Footer "New" split button drives both create dialogs in controlled mode.
+  const [newPageOpen, setNewPageOpen] = useState(false);
+  const [newCabinetOpen, setNewCabinetOpen] = useState(false);
   const lastRefreshAtRef = useRef(0);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     if (typeof window === "undefined") return SIDEBAR_DEFAULT_WIDTH;
@@ -183,7 +194,7 @@ export function Sidebar() {
       <aside
         suppressHydrationWarning
         className={cn(
-          "flex bg-sidebar h-screen overflow-hidden transition-[width] duration-200 will-change-[width] [&_button]:cursor-pointer",
+          "flex bg-[var(--gutter)] h-full overflow-hidden transition-[width] duration-200 will-change-[width] [&_button]:cursor-pointer",
           isMobile && "fixed inset-y-0 start-0 z-40",
           !isMobile && !collapsed && "shrink-0"
         )}
@@ -193,7 +204,7 @@ export function Sidebar() {
           className="flex h-full flex-col"
           style={{ width: panelWidth }}
         >
-        <div className="sidebar-header flex items-center justify-between gap-1 px-3 py-3">
+        <div className="sidebar-header flex items-center justify-between gap-1 px-3 py-2">
           <div className="flex min-w-0 items-center gap-1">
             <button
               onClick={() => setSection({ type: "home" })}
@@ -218,8 +229,8 @@ export function Sidebar() {
                 </span>
               )}
             </button>
-            {/* The room switcher is just the room's icon next to the logo;
-                the room/cabinet name already shows in the drawer + main view. */}
+            {/* The room switcher shows the current room's icon + name next to
+                the logo; the name truncates on narrow rails. */}
             <RoomSwitcher />
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
@@ -234,7 +245,7 @@ export function Sidebar() {
               disabled={refreshing}
             >
               <RefreshCw
-                className={cn("h-3 w-3", refreshing && "animate-spin")}
+                className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
               />
             </Button>
             <Button
@@ -242,10 +253,10 @@ export function Sidebar() {
               size="icon"
               aria-label={t("sidebar:collapseSidebar")}
               title={t("sidebar:collapseSidebar")}
-              className="h-7 w-7"
+              className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground"
               onClick={() => setCollapsed(true)}
             >
-              <PanelLeftClose className="h-4 w-4 rtl:rotate-180" />
+              <PanelLeftClose className="h-3.5 w-3.5 rtl:rotate-180" />
             </Button>
           </div>
         </div>
@@ -253,19 +264,43 @@ export function Sidebar() {
 
         <div className="p-2 flex items-center gap-1">
           {sidebarDrawer === "data" && (
-            <>
-              <div className="min-w-0 flex-1">
-                {/* Create the page inside the cabinet you're in, not at the
-                    data-dir (home) root. */}
-                <NewPageDialog parentPath={currentCabinetParent} />
-              </div>
-              <div className="min-w-0 flex-1">
-                {/* Rooms v3: the bottom button makes a cabinet *inside the
-                    current cabinet* (a child), not a new top-level room. New
-                    rooms are created from the home switcher's "Add room". */}
-                <NewCabinetDialog parentPath={currentCabinetParent} />
-              </div>
-            </>
+            <div className="min-w-0 flex-1">
+              {/* One "New" split button instead of two truncating labels. Page
+                  and cabinet are both created *inside* the current cabinet (a
+                  child), not at the data-dir (home) root. New top-level rooms
+                  come from the home switcher's "Add room". */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  title={t("sidebar:new")}
+                  className="flex w-full min-w-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 truncate">{t("sidebar:new")}</span>
+                  <ChevronDown className="ms-auto h-3 w-3 shrink-0 opacity-60" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top">
+                  <DropdownMenuItem onClick={() => setNewPageOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    {t("sidebar:newPage")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setNewCabinetOpen(true)}>
+                    <Archive className="h-4 w-4" />
+                    {t("dialogs:newCabinet.trigger")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <NewPageDialog
+                parentPath={currentCabinetParent}
+                open={newPageOpen}
+                onOpenChange={setNewPageOpen}
+                hideTrigger
+              />
+              <NewCabinetDialog
+                parentPath={currentCabinetParent}
+                open={newCabinetOpen}
+                onOpenChange={setNewCabinetOpen}
+              />
+            </div>
           )}
           {sidebarDrawer === "agents" && (
             <button
@@ -311,13 +346,10 @@ export function Sidebar() {
             aria-label="Integrations"
             title="Integrations"
             className={cn(
-              "h-7 w-7 shrink-0",
-              section.type === "integrations" && "bg-accent text-foreground"
+              "h-7 w-7 shrink-0 text-muted-foreground/60 hover:text-muted-foreground",
+              section.type === "integrations" && "bg-accent text-foreground hover:text-foreground"
             )}
-            onClick={() => {
-              setSection({ type: "integrations" });
-              setCollapsed(true);
-            }}
+            onClick={() => setSection({ type: "integrations" })}
           >
             <Blocks className="h-3.5 w-3.5" />
           </Button>
@@ -327,8 +359,8 @@ export function Sidebar() {
             aria-label={t("sidebar:settings")}
             title={t("sidebar:settings")}
             className={cn(
-              "h-7 w-7 shrink-0",
-              section.type === "settings" && "bg-accent text-foreground"
+              "h-7 w-7 shrink-0 text-muted-foreground/60 hover:text-muted-foreground",
+              section.type === "settings" && "bg-accent text-foreground hover:text-foreground"
             )}
             onClick={() => setSection({ type: "settings" })}
           >
@@ -344,24 +376,49 @@ export function Sidebar() {
             aria-orientation="vertical"
             aria-label={t("sidebar:resizeHandle")}
             title={t("sidebar:resetWidth")}
+            tabIndex={0}
+            aria-valuemin={SIDEBAR_MIN_WIDTH}
+            aria-valuemax={SIDEBAR_MAX_WIDTH}
+            aria-valuenow={sidebarWidth}
             onPointerDown={startResize}
             onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
-            className="absolute inset-y-0 inset-x-0 mx-auto w-3 cursor-col-resize bg-transparent"
+            onKeyDown={(event) => {
+              const STEP = 16;
+              if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                setSidebarWidth((w) => clamp(w - STEP, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH));
+              } else if (event.key === "ArrowRight") {
+                event.preventDefault();
+                setSidebarWidth((w) => clamp(w + STEP, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH));
+              } else if (event.key === "Home" || event.key === "Enter") {
+                event.preventDefault();
+                setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
+              }
+            }}
+            className="absolute inset-y-0 inset-x-0 mx-auto w-3 cursor-col-resize bg-transparent focus-visible:outline-none focus-visible:bg-primary/40"
           />
         </div>
       )}
       {collapsed && !isMobile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t("sidebar:expandSidebar")}
-          title={t("sidebar:expandSidebar")}
-          className="absolute top-3 z-20 h-7 w-7 animate-in fade-in zoom-in-95 duration-200"
+        // Sits in the same band as the viewer toolbar (desk paddingTop 10px +
+        // the h-10 toolbar row), vertically centered so it reads as the first
+        // toolbar button rather than a floating orphan. ViewerToolbar reserves
+        // the matching inline-start gap via --sidebar-toggle-offset.
+        <div
+          className="absolute top-[10px] z-20 flex h-10 items-center animate-in fade-in zoom-in-95 duration-200"
           style={{ insetInlineStart: "calc(0.5rem + var(--traffic-clearance, 0px))" }}
-          onClick={() => setCollapsed(false)}
         >
-          <PanelLeft className="h-4 w-4 rtl:rotate-180" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t("sidebar:expandSidebar")}
+            title={t("sidebar:expandSidebar")}
+            className="h-7 w-7 text-muted-foreground/60 hover:text-muted-foreground"
+            onClick={() => setCollapsed(false)}
+          >
+            <PanelLeft className="h-4 w-4 rtl:rotate-180" />
+          </Button>
+        </div>
       )}
     </>
   );

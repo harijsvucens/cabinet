@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { ExternalLink, Download, Copy, Check, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ToolbarButton } from "@/components/layout/toolbar-button";
 import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
+import { ViewerLayout } from "@/components/layout/viewer-layout";
 import { common, createLowlight } from "lowlight";
 import { toHtml } from "hast-util-to-html";
 import { markdownToHtml } from "@/lib/markdown/to-html";
@@ -268,51 +269,37 @@ export function NotebookViewer({ path }: NotebookViewerProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <ViewerToolbar
+    <ViewerLayout
+      toolbar={
+        <ViewerToolbar
         path={path}
         badge="IPYNB"
         sublabel={`${cellCount} cells · ${codeCellCount} code · ${language}`}
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
-          onClick={copyJupyterCommand}
+        <ToolbarButton
+          icon={copied ? Check : Copy}
+          label={copied ? "Copied" : "Copy run cmd"}
           title={t("editorExtras:jupyterLab")}
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-green-500" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-          {copied ? "Copied" : "Copy run cmd"}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
+          onClick={copyJupyterCommand}
+        />
+        <ToolbarButton
+          icon={Download}
+          label="Download"
           onClick={() => {
             const a = document.createElement("a");
             a.href = assetUrl;
             a.download = filename;
             a.click();
           }}
-        >
-          <Download className="h-3.5 w-3.5" />
-          Download
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 gap-1.5 text-xs"
+        />
+        <ToolbarButton
+          icon={ExternalLink}
+          label="Raw JSON"
           onClick={() => window.open(assetUrl, "_blank")}
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Raw JSON
-        </Button>
-      </ViewerToolbar>
-
+        />
+        </ViewerToolbar>
+      }
+    >
       <div className="flex-1 overflow-auto bg-[#F5EEDC]">
         {loading ? (
           <div className="flex items-center justify-center h-full text-[#7A6B5D] text-sm">
@@ -344,6 +331,6 @@ export function NotebookViewer({ path }: NotebookViewerProps) {
           </div>
         ) : null}
       </div>
-    </div>
+    </ViewerLayout>
   );
 }
