@@ -49,6 +49,7 @@ import { subscribeConversationEvents } from "@/lib/agents/conversation-events-cl
 import { StatusBar } from "@/components/layout/status-bar";
 import { ContentSheet } from "@/components/layout/content-sheet";
 import { DaemonHealthBanner } from "@/components/layout/daemon-health-banner";
+import { CloudConnectClaudeBanner } from "@/components/layout/cloud-connect-claude-banner";
 import { TourModal } from "@/components/onboarding/tour/tour-modal";
 import { useTour } from "@/components/onboarding/tour/use-tour";
 import {
@@ -1109,6 +1110,7 @@ export function AppShell() {
         style={{ '--sidebar-toggle-offset': sidebarCollapsed ? 'calc(2.25rem + var(--traffic-clearance, 0px))' : '0px' } as React.CSSProperties}
       >
         <DaemonHealthBanner />
+        <CloudConnectClaudeBanner />
         {!isMobile && <NarrowViewportHint />}
         {/* The main column IS the desk (transparent). Content floats on an
             elevated ContentSheet; the editor manages its own layout — its
