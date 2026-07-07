@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, ExternalLink, Check, Loader2 } from "lucide-react";
+import { ExternalLink, Check, Loader2, Copy } from "lucide-react";
+import { siClaude } from "simple-icons";
 import { Button } from "@/components/ui/button";
+
+function ClaudeMark({ className }: { className?: string }) {
+  return (
+    <svg role="img" viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d={siClaude.path} />
+    </svg>
+  );
+}
 
 // Cloud (CABINET_CLOUD=1) Connect-Claude card for the Providers settings tab: the full
 // `claude setup-token` flow driven in-page — Connect → open the link → paste the code → done —
@@ -16,6 +25,15 @@ export function ConnectClaudeCard() {
   const [url, setUrl] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const copyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard unavailable */ }
+  };
 
   const refresh = async () => {
     try {
@@ -68,7 +86,7 @@ export function ConnectClaudeCard() {
   return (
     <div className="mb-4 rounded-xl border border-primary/25 bg-primary/[0.05] p-4">
       <div className="flex items-start gap-2.5">
-        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+        <ClaudeMark className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-[13px] font-semibold">Claude Code</span>
@@ -87,12 +105,12 @@ export function ConnectClaudeCard() {
           ) : (
             <>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
-                Bring your own Claude subscription. Connect once to run agents — no API key, no terminal.
+                Bring your own Claude subscription. Connect once to run agents.
               </p>
 
               {phase === "disconnected" && (
                 <Button size="sm" className="mt-2.5 text-[12px]" onClick={start}>
-                  <Sparkles className="h-3.5 w-3.5" /> Connect Claude
+                  <ClaudeMark className="h-3.5 w-3.5" /> Connect Claude
                 </Button>
               )}
 
@@ -104,10 +122,16 @@ export function ConnectClaudeCard() {
 
               {(phase === "awaiting-code" || phase === "submitting") && (
                 <div className="mt-2.5 space-y-2.5">
-                  <a href={url} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-                    1. Open the Claude login <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                  <div className="flex items-center gap-2">
+                    <a href={url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+                      1. Open the Claude login <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                    <button type="button" onClick={copyUrl} title="Copy link"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted">
+                      {copied ? <><Check className="h-3.5 w-3.5 text-primary" /> Copied</> : <><Copy className="h-3.5 w-3.5" /> Copy</>}
+                    </button>
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       value={code} onChange={(e) => setCode(e.target.value)}
