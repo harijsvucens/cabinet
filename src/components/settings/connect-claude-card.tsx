@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Check, Loader2, Copy } from "lucide-react";
 import { siClaude } from "simple-icons";
 import { Button } from "@/components/ui/button";
+import { track } from "@/components/analytics/posthog-provider";
 
 function ClaudeMark({ className }: { className?: string }) {
   return (
@@ -71,6 +72,7 @@ export function ConnectClaudeCard() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "could not verify the code");
       setCode(""); setUrl(""); setPhase("connected");
+      track("claude_connected");
     } catch (e) {
       setError((e as Error).message); setPhase("awaiting-code");
     }
