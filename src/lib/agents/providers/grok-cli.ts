@@ -5,15 +5,20 @@ import {
   resolveCliCommand,
 } from "../provider-cli";
 
-// Verified 2026-05-03 against xAI's models docs. Grok 4.3 finished
-// rollout 2026-04-30 and is xAI's recommended default; the 4.x-fast line
-// covers cost-sensitive high-volume use; Grok 3 has been retired from the
-// recommended catalog so it's no longer listed here.
+// Verified 2026-07-11 against xAI's Grok Build docs (x.ai/cli). grok-4.5 is
+// the model that powers Grok Build and is xAI's current recommended default;
+// the 4.x-fast line covers cost-sensitive high-volume use; Grok 3 has been
+// retired from the recommended catalog so it's no longer listed here.
 const GROK_MODELS = [
+  {
+    id: "grok-4.5",
+    name: "Grok 4.5",
+    description: "xAI's recommended default — powers Grok Build, most intelligent",
+  },
   {
     id: "grok-4.3",
     name: "Grok 4.3",
-    description: "xAI's recommended default — fastest, most intelligent (1M context)",
+    description: "Previous flagship — fast, intelligent (1M context)",
   },
   { id: "grok-4", name: "Grok 4", description: "Frontier reasoning workloads" },
   {
@@ -40,24 +45,25 @@ export const grokCliProvider: AgentProvider = {
   icon: "grok",
   iconAsset: "/providers/grok.svg",
   installMessage:
-    "Grok CLI not found. Install with: npm install -g @vibe-kit/grok-cli",
+    "Grok CLI not found. Install with: curl -fsSL https://x.ai/cli/install.sh | bash",
   installSteps: [
+    {
+      title: "Install Grok CLI",
+      detail: "Install xAI's official Grok CLI (grok):",
+      command: "curl -fsSL https://x.ai/cli/install.sh | bash",
+      link: { label: "Grok CLI docs", url: "https://x.ai/cli" },
+    },
     {
       title: "Get an xAI API key",
       detail:
-        "Create or retrieve a key from the xAI Console. Cabinet will read it from XAI_API_KEY (or GROK_API_KEY).",
+        "On first launch grok opens a browser to sign in. For headless/agent runs Cabinet authenticates via XAI_API_KEY (or GROK_API_KEY) — create or retrieve one from the xAI Console.",
       link: { label: "Open xAI Console", url: "https://console.x.ai/" },
-    },
-    {
-      title: "Install Grok CLI",
-      detail: "Run the following in your terminal:",
-      command: "npm install -g @vibe-kit/grok-cli",
     },
     {
       title: "Export your API key",
       detail:
-        "Add XAI_API_KEY to your shell (e.g. ~/.zshrc or ~/.bashrc) so the CLI can authenticate:",
-      command: "export XAI_API_KEY=sk-...",
+        "Add XAI_API_KEY to your shell (e.g. ~/.zshrc or ~/.bashrc) so agent runs can authenticate:",
+      command: "export XAI_API_KEY=xai-...",
     },
     {
       title: "Verify setup",
