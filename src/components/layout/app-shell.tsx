@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Minimize2 } from "lucide-react";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { Header } from "@/components/layout/header";
 import { KBEditor } from "@/components/editor/editor";
@@ -135,6 +135,7 @@ import { useRoute } from "@/hooks/use-hash-route";
 import { useTaskFileSync } from "@/hooks/use-task-file-sync";
 import { useTreeStore } from "@/stores/tree-store";
 import { useAppStore } from "@/stores/app-store";
+import { useLocale } from "@/i18n/use-locale";
 import { useEditorStore } from "@/stores/editor-store";
 import { useRoomsStore } from "@/stores/rooms-store";
 
@@ -163,6 +164,7 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 export function AppShell() {
   useGlobalHotkeys();
   const isMobile = useIsMobile();
+  const { t } = useLocale();
   const loadTree = useTreeStore((s) => s.loadTree);
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
@@ -176,6 +178,17 @@ export function AppShell() {
   const taskRailOpen = useAppStore((s) => s.taskRailOpen);
   const setTerminalCwd = useAppStore((s) => s.setTerminalCwd);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const focusMode = useAppStore((s) => s.focusMode);
+  const setFocusMode = useAppStore((s) => s.setFocusMode);
+  // Escape exits focus mode — registered only while active.
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocusMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusMode, setFocusMode]);
   const setSidebarCollapsed = useAppStore((s) => s.setSidebarCollapsed);
   const setAiPanelCollapsed = useAppStore((s) => s.setAiPanelCollapsed);
   const setTaskPanelConversation = useAppStore((s) => s.setTaskPanelConversation);
@@ -1088,7 +1101,7 @@ export function AppShell() {
     <div
       className="flex h-screen bg-[var(--gutter)] text-foreground transition-[padding] duration-200 ease-out"
       style={
-        isMobile
+        isMobile || focusMode
           ? undefined
           : { paddingTop: 10, paddingInlineEnd: taskRailOpen ? 52 : 10, paddingBottom: 0, paddingInlineStart: 0 }
       }
@@ -1105,7 +1118,15 @@ export function AppShell() {
         aria-atomic="true"
         className="sr-only"
       />
-      <Sidebar />
+      <div
+        className={
+          focusMode
+            ? "hidden"
+            : "flex h-full min-h-0 shrink-0 animate-in fade-in slide-in-from-left-4 duration-300 ease-out"
+        }
+      >
+        <Sidebar />
+      </div>
       {/* The main column is transparent (shows the desk gutter). The content
           "sheet" floats inside it (rounded + shadow); the status bar sits
           BELOW the sheet, on the desk — outside the floating page. */}
@@ -1117,7 +1138,23 @@ export function AppShell() {
         <CloudConnectClaudeBanner />
         <CloudTierBanner />
         <CloudUpgradeModal />
-        {!isMobile && <NarrowViewportHint />}
+        {!isMobile && !focusMode && <NarrowViewportHint />}
+        {focusMode && (
+          <div className="viewer-toolbar flex h-10 shrink-0 items-center justify-between px-4 animate-in fade-in slide-in-from-top-2 duration-300 ease-out">
+            <span className="font-logo text-[20px] italic tracking-[-0.01em] text-foreground select-none">
+              <span className="brand-en">cabinet</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setFocusMode(false)}
+              title={`${t("editor:header.exitFocusMode")} (Esc)`}
+              aria-label={t("editor:header.exitFocusMode")}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Minimize2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
         {/* The main column IS the desk (transparent). Content floats on an
             elevated ContentSheet; the editor manages its own layout — its
             toolbars sit on the desk — so it opts out of the default sheet. */}
@@ -1129,11 +1166,19 @@ export function AppShell() {
           )}
         </main>
         {terminalOpen && terminalPosition === "bottom" && <TerminalTabs />}
-        {!isMobile && <StatusBar />}
+        {!isMobile && (
+          <div className={focusMode ? "hidden" : "animate-in fade-in duration-300 ease-out"}>
+            <StatusBar />
+          </div>
+        )}
       </div>
-      <MobileBottomNav />
+      {!focusMode && <MobileBottomNav />}
       {terminalOpen && terminalPosition === "right" && <TerminalTabs />}
-      {!isMobile && <TaskRail />}
+      {!isMobile && (
+        <div className={focusMode ? "hidden" : "contents"}>
+          <TaskRail />
+        </div>
+      )}
       <TaskDetailPanel />
       <SearchPalette />
       <FileHistoryPanel />

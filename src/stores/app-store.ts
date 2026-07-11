@@ -135,6 +135,9 @@ interface AppState {
   sidebarCollapsed: boolean;
   sidebarDrawer: SidebarDrawer;
   aiPanelCollapsed: boolean;
+  /** Full-screen focus mode: hides sidebars, rails and viewer toolbars —
+   *  only a slim logo/exit bar remains. Session-only, not persisted. */
+  focusMode: boolean;
   cabinetVisibilityModes: Record<string, CabinetVisibilityMode>;
   taskPanelConversation: ConversationMeta | null;
   taskPanelOpen: boolean;
@@ -187,6 +190,7 @@ interface AppState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarDrawer: (drawer: SidebarDrawer) => void;
   setAiPanelCollapsed: (collapsed: boolean) => void;
+  setFocusMode: (on: boolean) => void;
   setCabinetVisibilityMode: (
     cabinetPath: string,
     mode: CabinetVisibilityMode
@@ -261,6 +265,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarCollapsed: loadSidebarCollapsed(),
   sidebarDrawer: loadSidebarDrawer(),
   aiPanelCollapsed: false,
+  focusMode: false,
   cabinetVisibilityModes: loadCabinetVisibilityModes(),
   taskPanelConversation: null,
   taskPanelOpen: false,
@@ -532,6 +537,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ sidebarDrawer: drawer });
   },
   setAiPanelCollapsed: (collapsed) => set({ aiPanelCollapsed: collapsed }),
+  setFocusMode: (on) => set({ focusMode: on }),
   setCabinetVisibilityMode: (cabinetPath, mode) => {
     const normalizedCabinetPath = normalizeVisibilityCabinetPath(cabinetPath);
     const nextModes = {

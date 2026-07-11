@@ -1070,6 +1070,8 @@
   },
   "editor": {
     "header": {
+      "focusMode": "Full screen",
+      "exitFocusMode": "Exit full screen",
       "exportPage": "Export page",
       "copyMarkdown": "Copy Markdown",
       "copyForLlms": "Copy for LLMs",
@@ -1634,7 +1636,7 @@
     },
     "tabs": {
       "profile": "Profile",
-      "providers": "Providers",
+      "providers": "AI Providers",
       "skills": "Skills",
       "storage": "Storage",
       "integrations": "Integrations",

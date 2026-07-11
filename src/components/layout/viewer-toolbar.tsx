@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { Archive, Globe } from "lucide-react";
+import { Archive, Globe, Maximize2 } from "lucide-react";
 import { HeaderActions } from "@/components/layout/header-actions";
 import { ToolbarButton } from "@/components/layout/toolbar-button";
 import { ReturnToChip } from "@/components/layout/return-to-chip";
@@ -48,6 +48,8 @@ export function ViewerToolbar({
   const { t } = useLocale();
   const appMode = useAppStore((s) => s.appMode);
   const setAppMode = useAppStore((s) => s.setAppMode);
+  const focusMode = useAppStore((s) => s.focusMode);
+  const setFocusMode = useAppStore((s) => s.setFocusMode);
   const nodes = useTreeStore((s) => s.nodes);
   const selectedPath = useTreeStore((s) => s.selectedPath);
   const sourcePath = path || selectedPath;
@@ -84,6 +86,10 @@ export function ViewerToolbar({
   // URL isn't browsable (e.g. .md downloads as octet-stream), so no button.
   const isBrowsable = sourceNode?.type === "website" || sourceNode?.type === "app";
 
+  // Focus mode: the whole toolbar disappears — app-shell renders the slim
+  // logo/exit bar instead.
+  if (focusMode) return null;
+
   const modeButtons = !showModeButtons ? null : appMode === "browse" ? (
     // Always offer the exit affordance while browsing, regardless of which node
     // is selected (you may have entered browse from a link in a markdown page).
@@ -109,7 +115,7 @@ export function ViewerToolbar({
         // CSS targets (globals.css) — this bar is a <div>, not a <header>, so
         // without the class the hidden-title-bar window can't be dragged from
         // the editor or any file viewer built on ViewerToolbar.
-        "viewer-toolbar flex shrink-0 items-center justify-between gap-x-3 gap-y-2 px-3 py-1.5 transition-[padding] duration-200 md:h-10 md:py-0",
+        "viewer-toolbar flex shrink-0 items-center justify-between gap-x-3 gap-y-2 px-3 py-1.5 transition-[padding] duration-200 md:h-10 md:py-0 animate-in fade-in slide-in-from-top-1 duration-300 ease-out",
         className
       )}
       style={{ paddingInlineStart: `calc(1rem + var(--sidebar-toggle-offset, 0px))` }}
@@ -133,6 +139,12 @@ export function ViewerToolbar({
         {children}
         {/* File history moved to the sidebar right-click menu — the toolbar
             stays minimal so the content leads. */}
+        <ToolbarButton
+          icon={Maximize2}
+          label={t("editor:header.focusMode")}
+          iconOnly
+          onClick={() => setFocusMode(true)}
+        />
         {modeButtons}
         <HeaderActions />
         <NewTaskButton />

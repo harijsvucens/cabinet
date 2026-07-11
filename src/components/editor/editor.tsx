@@ -132,6 +132,7 @@ function resolveInternalLink(
 
 export function KBEditor() {
   const { t } = useLocale();
+  const focusMode = useAppStore((s) => s.focusMode);
   const { currentPath, assetBase, content, saveStatus, frontmatter, isLoading, loadStatus, createMissingPage } = useEditorStore();
   const nodes = useTreeStore((s) => s.nodes);
   // A page under a read-only Connect Knowledge mount is view-only — edits would
@@ -702,7 +703,9 @@ export function KBEditor() {
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Chrome row on the desk: folder tabs on the left; on the Page tab the
           formatting toolbar scrolls to the right of them (transparent, faded).
-          Only the tabs connect down into the sheet below. */}
+          Only the tabs connect down into the sheet below. Hidden entirely in
+          focus mode — content only. */}
+      {!focusMode && (
       <div className="flex shrink-0 items-end gap-3 ps-4 pe-2 min-h-[34px]">
         {showFolderTabs && (
           <FolderTabs
@@ -728,6 +731,7 @@ export function KBEditor() {
           </div>
         )}
       </div>
+      )}
       {/* Files tab: elevated sheet holding the folder index. */}
       {onFilesTab && (
         <ContentSheet>
