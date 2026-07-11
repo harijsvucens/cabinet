@@ -43,6 +43,7 @@ import { useCloudTier } from "@/lib/cloud/use-cloud-tier";
 import { gateAiRun } from "@/lib/cloud/client-tier";
 import { NewFileDialog } from "@/components/sidebar/new-file-dialog";
 import { useFileImport } from "@/components/sidebar/use-file-import";
+import { ProvidersEmptyBanner } from "@/components/home/providers-empty-banner";
 
 type QuickAction = {
   /** Key under `home:quickActions.*` for the visible button label. */
@@ -771,6 +772,7 @@ export function HomeScreen() {
   return (
     <div className="flex-1 flex flex-col items-center px-4 overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-xl space-y-8">
+        <ProvidersEmptyBanner />
         {/*
          * Audit #005 (review feedback 2026-05-02): the prior text-xl/2xl
          * fix was too aggressive — the greeting felt undersized on a

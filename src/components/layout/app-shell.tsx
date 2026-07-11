@@ -67,6 +67,7 @@ import type { CabinetAgentSummary } from "@/types/cabinets";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { UpdateDialog } from "@/components/layout/update-dialog";
 import { NotificationToasts } from "@/components/layout/notification-toasts";
+import { ProviderSetupDialog } from "@/components/settings/provider-setup-dialog";
 import { SystemToasts } from "@/components/layout/system-toasts";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -1166,6 +1167,7 @@ export function AppShell() {
       />
       <NotificationToasts />
       <SystemToasts />
+      <ProviderSetupDialog />
       <FeedbackPopup />
       <DiagnosticsBoot />
       <TourModal

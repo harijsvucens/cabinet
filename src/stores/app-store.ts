@@ -153,6 +153,10 @@ interface AppState {
   defaultEffort: string | null;
   providersLoading: boolean;
   providersLoaded: boolean;
+  /** Provider id currently open in the global "Set up provider" dialog, or null. */
+  providerSetupId: string | null;
+  openProviderSetup: (providerId: string) => void;
+  closeProviderSetup: () => void;
   /** Top-level app surface: the page editor, or the in-app browser. */
   appMode: "edit" | "browse";
   /** URL shown in browse mode; null until a link/bookmark sets it. */
@@ -270,6 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   defaultEffort: null,
   providersLoading: false,
   providersLoaded: false,
+  providerSetupId: null,
   appMode: "edit",
   browseUrl: null,
   setAppMode: (mode, url) =>
@@ -277,6 +282,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       appMode: mode,
       browseUrl: url !== undefined ? url : state.browseUrl,
     })),
+
+  openProviderSetup: (providerId) => set({ providerSetupId: providerId }),
+  closeProviderSetup: () => set({ providerSetupId: null }),
 
   loadProviders: async () => {
     const { providersLoading, providersLoaded } = get();

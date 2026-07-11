@@ -24,34 +24,6 @@ const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
 const GITHUB_REPO_URL = "https://github.com/cabinetai/cabinet";
 const CABINET_INVITE_URL = "https://runcabinet.com";
 
-// Audit #094: each "Not installed" provider row needs a one-click path to
-// the canonical install instructions. Mapped by the provider id used by
-// /api/agents/providers — falls back to a generic search if the id is new.
-const PROVIDER_INSTALL_URLS: Record<string, string> = {
-  "claude-code": "https://docs.claude.com/en/docs/claude-code/quickstart",
-  "codex-cli": "https://github.com/openai/codex#installation",
-  codex: "https://github.com/openai/codex#installation",
-  "openai-codex": "https://github.com/openai/codex#installation",
-  "cursor-cli": "https://cursor.com/cli",
-  cursor: "https://cursor.com/cli",
-  "gemini-cli": "https://github.com/google-gemini/gemini-cli#installation",
-  gemini: "https://github.com/google-gemini/gemini-cli#installation",
-  opencode: "https://opencode.ai/docs/install",
-  pi: "https://github.com/PiAPI-CLI/pi#install",
-  "grok-cli": "https://docs.x.ai/docs/quickstart",
-  grok: "https://docs.x.ai/docs/quickstart",
-  "copilot-cli": "https://docs.github.com/copilot/github-copilot-in-the-cli/configuring-github-copilot-in-the-cli",
-  copilot: "https://docs.github.com/copilot/github-copilot-in-the-cli/configuring-github-copilot-in-the-cli",
-  "github-copilot": "https://docs.github.com/copilot/github-copilot-in-the-cli/configuring-github-copilot-in-the-cli",
-};
-
-function installUrlForProvider(id: string): string {
-  return (
-    PROVIDER_INSTALL_URLS[id] ||
-    `https://www.google.com/search?q=${encodeURIComponent(`${id} CLI install`)}`
-  );
-}
-
 // Word counter for the open page. The editor stores the page body as
 // markdown, so we strip markdown syntax that shouldn't count as prose
 // (code fences, inline code, link/image URLs, emphasis markers, raw HTML)
@@ -214,6 +186,7 @@ export function StatusBar() {
   }, [lastSavedAt, savedTick]);
   const loadTree = useTreeStore((s) => s.loadTree);
   const setSection = useAppStore((s) => s.setSection);
+  const openProviderSetup = useAppStore((s) => s.openProviderSetup);
   const terminalOpen = useAppStore((s) => s.terminalOpen);
   const toggleTerminal = useAppStore((s) => s.toggleTerminal);
   const [isGitRepo, setIsGitRepo] = useState(false);
@@ -552,6 +525,15 @@ export function StatusBar() {
                       <span className={`ml-auto ${anyProviderReady ? "text-green-500" : "text-red-500"}`}>
                         {!providersLoaded ? t("status:server.checkingShort") : anyProviderReady ? t("status:server.available") : t("status:server.noneReady")}
                       </span>
+                      {/* Always-available shortcut to Settings › Providers so users
+                          can add/switch/log in without hunting through Settings. */}
+                      <button
+                        type="button"
+                        onClick={() => { setSection({ type: "settings", slug: "providers" }); setShowServerPopup(false); }}
+                        className="rounded border border-border px-1.5 py-0.5 text-[9px] font-medium text-foreground/70 hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        {t("status:server.configure")}
+                      </button>
                     </div>
                     {providersLoaded && providerStatuses.map((p) => (
                       <div key={p.id} className="flex items-center gap-2 text-[10px] pl-3.5 text-muted-foreground/70">
@@ -567,17 +549,19 @@ export function StatusBar() {
                             : p.available ? t("status:server.providerNotLoggedIn")
                             : t("status:server.providerNotInstalled")}
                           </span>
-                          {/* Audit #094: every "Not installed" row gets a link
-                              to the provider's canonical install docs. */}
-                          {!p.available && (
-                            <a
-                              href={installUrlForProvider(p.id)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                          {/* Not ready → open the in-app setup dialog (install /
+                              log in / verify) instead of external docs. */}
+                          {!(p.available && p.authenticated) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openProviderSetup(p.id);
+                                setShowServerPopup(false);
+                              }}
                               className="rounded bg-foreground px-1.5 py-0.5 text-[9px] font-medium text-background hover:bg-foreground/85"
                             >
-                              {t("status:server.install")}
-                            </a>
+                              {p.available ? t("status:server.logIn") : t("status:server.install")}
+                            </button>
                           )}
                         </span>
                       </div>
@@ -633,7 +617,7 @@ export function StatusBar() {
                         <p className="text-[10px] text-muted-foreground">
                           No agent providers are installed or logged in.{" "}
                           <button
-                            onClick={() => { setSection({ type: "settings" }); setShowServerPopup(false); }}
+                            onClick={() => { setSection({ type: "settings", slug: "providers" }); setShowServerPopup(false); }}
                             className="underline hover:text-foreground transition-colors"
                           >
                             Configure in Settings

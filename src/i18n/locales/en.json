@@ -1174,7 +1174,13 @@
     "greetingWithName": "{{greeting}}, {{name}}.",
     "greetingNoName": "{{greeting}}.",
     "composerPlaceholder": "I want to create...",
-    "composerDaemonDown": "Agent daemon offline — restart to send"
+    "composerDaemonDown": "Agent daemon offline — restart to send",
+    "providersEmpty": {
+      "title": "No AI provider is set up yet",
+      "body": "Agents need an AI CLI to run. Set one up — it takes a minute, no terminal required.",
+      "cta": "Set up Claude",
+      "seeAll": "See all providers"
+    }
   },
   "onboarding": {
     "launchHeading": "Start your <accent>Cabinet</accent>",
@@ -1775,6 +1781,36 @@
       "teamSize": "Team size",
       "teamSizePlaceholder": "Solo / 2–5 / 6–20 / 20+",
       "subtitle": "Captured during onboarding. Agents read these when planning work."
+    },
+    "providerSetup": {
+      "title": "Set up {{name}}",
+      "ready": "Ready",
+      "notLoggedIn": "Not logged in",
+      "notInstalled": "Not installed",
+      "allSet": "{{name}} is installed, logged in, and ready to run agents.",
+      "installTitle": "Install",
+      "installForMe": "Install for me",
+      "installing": "Installing…",
+      "installOk": "Installed",
+      "installFail": "Install didn't complete — see the output or open a terminal.",
+      "noAutoInstall": "This provider has no automatic installer. Open Settings to see manual steps.",
+      "loginTitle": "Log in",
+      "connectClaude": "Connect Claude",
+      "preparingLink": "Preparing your login link…",
+      "openClaudeLogin": "Open the Claude login",
+      "pasteCodeHint": "Authenticate in the tab that opens, then paste the code here:",
+      "codePlaceholder": "Paste the code from Claude",
+      "connect": "Connect",
+      "terminalLoginHint": "Running {{command}} — approve in the browser it opens, then re-check.",
+      "recheck": "I've logged in — re-check",
+      "loginApiKeyHint": "This provider signs in with an API key. Add it in Settings → Providers.",
+      "addApiKey": "Add API key in Settings",
+      "apiKeyFieldHint": "Paste your {{envVar}} — it is saved to .cabinet.env and used for every agent run.",
+      "saveKey": "Save key",
+      "verify": "Run verify",
+      "verifyPass": "Verified — agents can use this provider.",
+      "openSettings": "Open provider settings",
+      "done": "Done"
     }
   },
   "sidebar": {
@@ -1845,7 +1881,9 @@
       "providerNotLoggedIn": "Not logged in",
       "providerNotInstalled": "Not installed",
       "install": "Install",
-      "howToFix": "How to fix"
+      "howToFix": "How to fix",
+      "logIn": "Log in",
+      "configure": "Configure"
     },
     "save": {
       "retryTitle": "Click to retry the failed save",

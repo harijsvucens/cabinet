@@ -1940,12 +1940,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── Cloud Claude Code login (CABINET_CLOUD) ── one-click setup-token orchestration.
+  // ── Claude Code login ── one-click `claude setup-token` orchestration. Works on
+  // cloud tenants and desktop/self-host alike (both just drive the local `claude`
+  // CLI over a PTY). Bearer-gated above like the rest of the daemon API.
   if (url.pathname.startsWith("/auth/claude/")) {
-    if (process.env.CABINET_CLOUD !== "1") {
-      res.writeHead(404).end(JSON.stringify({ error: "cloud only" }));
-      return;
-    }
     const action = url.pathname.slice("/auth/claude/".length);
     const sendJson = (code: number, body: unknown) => {
       res.writeHead(code, { "Content-Type": "application/json" });

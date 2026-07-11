@@ -11,6 +11,10 @@ interface WebTerminalProps {
   providerId?: string;
   adapterType?: string;
   cwd?: string; // DATA_DIR-relative working directory for shell sessions
+  // One-shot command typed into a fresh shell session once it's ready (e.g.
+  // "codex login"). Ignored on reconnect. Lets a caller drive a specific CLI
+  // in an embedded terminal without a bespoke adapter.
+  initialInput?: string;
   onClose: () => void;
 }
 
@@ -68,6 +72,7 @@ export function WebTerminal({
   providerId,
   adapterType,
   cwd,
+  initialInput,
   reconnect,
   themeSurface = "terminal",
   onClose,
@@ -94,6 +99,7 @@ export function WebTerminal({
     let sessionFinished = false;
     let terminalReady = false;
     let wsOpen = false;
+    let sentInitial = false;
     const pendingWrites: Array<string | Uint8Array> = [];
 
     // Route every terminal write through here so bytes that arrive before
@@ -201,6 +207,16 @@ export function WebTerminal({
           }
           // Silently skip other types (Blob etc.) — binaryType is set to
           // "arraybuffer" so we never expect them.
+
+          // First output means the shell has printed its prompt and is ready
+          // for input — type the one-shot command now (once). The small delay
+          // lets a slow prompt finish rendering before we submit.
+          if (initialInput && !reconnect && !sentInitial && wsOpen) {
+            sentInitial = true;
+            setTimeout(() => {
+              try { ws?.send(initialInput + "\r"); } catch { /* socket gone */ }
+            }, 500);
+          }
         };
 
         ws.onerror = () => {
@@ -390,7 +406,7 @@ export function WebTerminal({
       xtermRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [sessionId, prompt, displayPrompt, providerId, adapterType, cwd, reconnect, themeSurface]);
+  }, [sessionId, prompt, displayPrompt, providerId, adapterType, cwd, initialInput, reconnect, themeSurface]);
 
   const surfaceBackground = themeSurface === "page" ? "var(--background)" : "var(--terminal-bg)";
   const surfaceForeground = themeSurface === "page" ? "var(--foreground)" : "var(--terminal-fg)";

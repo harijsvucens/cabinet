@@ -1482,6 +1482,19 @@ export function SettingsPage() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
+                                    {/* Seamless in-app setup (install / log in / verify) —
+                                        the no-terminal path. Guide stays as the manual
+                                        copy-paste fallback. */}
+                                    {!isReady && (
+                                      <button
+                                        onClick={() => useAppStore.getState().openProviderSetup(provider.id)}
+                                        className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                                        title={t("settings:providerSetup.title", { name: provider.name })}
+                                      >
+                                        <Sparkles className="size-3" />
+                                        {isInstalled ? t("status:server.logIn") : t("settings:providerSetup.installForMe")}
+                                      </button>
+                                    )}
                                     {setupSteps.length > 0 && (
                                       <button
                                         onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
