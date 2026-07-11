@@ -335,8 +335,13 @@ function ProviderSetupPanel({ providerId }: { providerId: string }) {
 function ProviderLogo({ src, name }: { src?: string; name: string }) {
   const [broken, setBroken] = useState(false);
   if (src && !broken) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" onError={() => setBroken(true)} />;
+    // Light tile so monochrome brand marks stay visible on any theme.
+    return (
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white ring-1 ring-black/[0.06]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className="h-6 w-6 object-contain" onError={() => setBroken(true)} />
+      </div>
+    );
   }
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-muted-foreground">

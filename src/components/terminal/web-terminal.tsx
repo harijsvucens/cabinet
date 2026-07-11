@@ -311,13 +311,21 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
 
       if (disposed) return;
 
+      // The app bundles JetBrains Mono under a hashed next/font family exposed
+      // via --font-mono, so the literal "JetBrains Mono" name never matched and
+      // the terminal fell back to a system mono. Read the resolved var and put
+      // it first, with a literal stack as fallback.
+      const monoFamily = readRootVar("--font-mono", "")
+        .replace(/var\([^)]*\)/g, "")
+        .replace(/^[\s,]+/, "")
+        .trim();
       terminal = new Terminal({
         cursorBlink: true,
         cursorStyle: "bar",
         fontSize: 13,
         fontFamily:
-          "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
-        lineHeight: 1.2,
+          `${monoFamily ? monoFamily + ", " : ""}'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace`,
+        lineHeight: 1.3,
         letterSpacing: 0,
         theme: getTerminalTheme(themeSurface),
         scrollback: 10000,
