@@ -112,7 +112,7 @@ export function IntegrationDetailPage({
                     Coming soon
                   </span>
                 )}
-                {entry && <TierBadge tier={entry.trustTier} />}
+                {entry && <TierBadge tier={entry.trustTier} vendorName={entry.vendorName} />}
               </div>
               <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">
                 {item.blurb}
@@ -305,7 +305,7 @@ export function IntegrationDetailPage({
 }
 
 /** Trust-tier pill shown in the hero next to the availability badge. */
-function TierBadge({ tier }: { tier: string }) {
+function TierBadge({ tier, vendorName }: { tier: string; vendorName?: string }) {
   if (tier === "official") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -324,6 +324,14 @@ function TierBadge({ tier }: { tier: string }) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-600 dark:text-sky-400">
         <ShieldCheck className="h-3 w-3" /> Registry-listed
+      </span>
+    );
+  }
+  if (tier === "vendor") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
+        <ShieldCheck className="h-3 w-3" />
+        {vendorName ? `Published by ${vendorName}` : "Vendor-published"}
       </span>
     );
   }

@@ -56,6 +56,7 @@ export async function GET(): Promise<NextResponse> {
       credentials: entry.credentials,
       transport: entry.transport,
       verifiedTier: verifyTier(entry.trustTier, entry.registryId, presence),
+      vendorName: entry.vendorName,
       authBackend: resolveAuthBackend(entry, mode),
       supportedProviderIds,
       connectedProviderIds: connectedProvidersForEntry(entry),
