@@ -16,6 +16,10 @@
  * the UI without verification). `cabinet` = a first-party server we build and
  * maintain (e.g. Discord) — first-party but NOT vendor-official, so it gets its
  * own label rather than borrowing "official" or hiding under "community".
+ * `vendor` = published by the vendor themselves (their domain, their OAuth) but
+ * NOT listed in the Official MCP Registry, so the `official` badge can't be
+ * verified and would be a claim we can't back. Calling it `community` would be
+ * the opposite lie. It gets its own honest label.
  *
  * Auth backends are deployment-aware (see `deployment-mode.ts`):
  *   - `cli-pkce`  — official remote HTTP server; the CLI performs PKCE
@@ -28,7 +32,7 @@
  *                   secret server-side). Not used by the local build.
  */
 
-export type TrustTier = "official" | "registry" | "cabinet" | "community";
+export type TrustTier = "official" | "registry" | "vendor" | "cabinet" | "community";
 
 export type AuthBackend = "cli-pkce" | "user-app" | "token" | "cabinet-broker";
 
@@ -73,6 +77,8 @@ export interface CatalogEntry {
   registryId?: string;
   /** Declared tier; the UI shows the *verified* tier, falling back to this offline. */
   trustTier: TrustTier;
+  /** Display name of the publisher for the `vendor` tier — e.g. "Meta". */
+  vendorName?: string;
   /**
    * Cannot be connected on Cabinet Cloud — sign-in needs a local terminal / desktop app on the
    * user's own machine (e.g. a CLI `login`, the Figma desktop app's local MCP server, `sf org
