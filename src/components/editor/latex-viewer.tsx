@@ -6,6 +6,7 @@ import { ToolbarButton } from "@/components/layout/toolbar-button";
 import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
 import { ViewerLayout } from "@/components/layout/viewer-layout";
 import { renderLatexToHtml } from "./latex-render";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface LatexViewerProps {
   path: string;
@@ -187,9 +188,11 @@ export function LatexViewer({ path }: LatexViewerProps) {
                 </div>
               </div>
             )}
-            <article
+            <SafeHtml
+              as="article"
+              html={rendered.html}
+              profile="rich"
               className="latex-rendered prose prose-zinc max-w-none dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: rendered.html }}
             />
           </div>
         ) : (

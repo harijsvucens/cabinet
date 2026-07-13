@@ -9,6 +9,7 @@ import { common, createLowlight } from "lowlight";
 import { toHtml } from "hast-util-to-html";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { useLocale } from "@/i18n/use-locale";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface NotebookViewerProps {
   path: string;
@@ -133,9 +134,10 @@ function CellOutput({ output }: { output: NotebookOutput }) {
   if (data["image/svg+xml"]) {
     const svg = joinSource(data["image/svg+xml"]);
     return (
-      <div
+      <SafeHtml
+        html={svg}
+        profile="svg"
         className="max-w-full rounded-md bg-white p-2 overflow-auto"
-        dangerouslySetInnerHTML={{ __html: svg }}
       />
     );
   }
@@ -174,7 +176,7 @@ function CodeCellView({ cell, language }: { cell: CodeCell; language: string }) 
       </div>
       <div>
         <pre className="whitespace-pre overflow-x-auto font-mono text-[13px] leading-relaxed px-4 py-3 rounded-md bg-[#FFF9E9] border border-[#E8DDC5] text-[#2A221B]">
-          <code dangerouslySetInnerHTML={{ __html: html }} />
+          <SafeHtml as="code" html={html} profile="code" />
         </pre>
 
         {hasOutputs && (
@@ -206,9 +208,10 @@ function MarkdownCellView({ cell }: { cell: MarkdownCell }) {
     };
   }, [cell.source]);
   return (
-    <div
+    <SafeHtml
+      html={html}
+      profile="rich"
       className="prose prose-sm max-w-none mb-5 px-1 [&_h1]:font-serif [&_h2]:font-serif [&_h3]:font-serif [&_a]:text-[#8B5E3C] [&_a:hover]:underline [&_code]:bg-[#F5EEDC] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[#8B2E3E]"
-      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

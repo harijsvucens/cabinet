@@ -7,6 +7,7 @@ import { ViewerToolbar } from "@/components/layout/viewer-toolbar";
 import { ViewerLayout } from "@/components/layout/viewer-layout";
 import { ToolbarButton } from "@/components/layout/toolbar-button";
 import { useLocale } from "@/i18n/use-locale";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface MermaidViewerProps {
   path: string;
@@ -196,13 +197,14 @@ export function MermaidViewer({ path, title }: MermaidViewerProps) {
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
           >
-            <div
+            <SafeHtml
               ref={containerRef}
+              html={svg}
+              profile="svg"
               className="flex items-center justify-center p-8 min-h-full [&_svg]:max-w-full origin-center select-none"
               style={{
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               }}
-              dangerouslySetInnerHTML={{ __html: svg }}
             />
           </div>
         )}

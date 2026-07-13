@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { markdownToHtml } from "@/lib/markdown/to-html";
 import { cn } from "@/lib/utils";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 export function Markdown({
   content,
@@ -39,7 +40,9 @@ export function Markdown({
   }
 
   return (
-    <div
+    <SafeHtml
+      html={html}
+      profile="rich"
       dir="auto"
       className={cn(
         "rtl-aware",
@@ -57,7 +60,6 @@ export function Markdown({
         "prose-blockquote:border-l-2 prose-blockquote:border-border prose-blockquote:pl-3 prose-blockquote:italic prose-blockquote:text-muted-foreground",
         className
       )}
-      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }
