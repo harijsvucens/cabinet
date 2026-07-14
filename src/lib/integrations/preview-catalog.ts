@@ -190,6 +190,21 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     actions: ["Search posts & mentions", "Summarise threads", "Draft posts"],
   },
   {
+    id: "google-ads",
+    name: "Google Ads",
+    category: "social",
+    logo: L("google-ads.svg"),
+    blurb: "Read campaigns, ad groups, and reporting data from Google Ads.",
+    brand: "#4285f4",
+    implemented: false,
+    actions: [
+      "Query campaigns, ad groups & ads",
+      "Pull performance metrics & reporting",
+      "Manage customer lists & audiences",
+      "Run raw GAQL queries",
+    ],
+  },
+  {
     id: "meta-ads",
     name: "Meta Ads",
     category: "social",
@@ -753,6 +768,7 @@ const LAUNCHED = new Set([
   "slack",
   "snowflake",
   "meta-ads",
+  "google-ads",
   "stackadapt",
 ]);
 

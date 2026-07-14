@@ -20,6 +20,7 @@ const integrationMeta: Record<string, { label: string; color: string; bg: string
   "twitter":    { label: "X / Twitter", color: "#1DA1F2", bg: "bg-[#1DA1F2]/10", icon: "𝕏" },
   "reddit":     { label: "Reddit",      color: "#FF4500", bg: "bg-[#FF4500]/10", icon: "🔴" },
   "instagram":  { label: "Instagram",   color: "#E4405F", bg: "bg-[#E4405F]/10", icon: "📷" },
+  "google-ads": { label: "Google Ads",   color: "#4285F4", bg: "bg-[#4285F4]/10", icon: "📢" },
   "meta-ads":   { label: "Meta Ads",     color: "#0668E1", bg: "bg-[#0668E1]/10", icon: "📣" },
   "tiktok":     { label: "TikTok",      color: "#000000", bg: "bg-[#010101]/10", icon: "🎵" },
   "youtube":    { label: "YouTube",     color: "#FF0000", bg: "bg-[#FF0000]/10", icon: "▶️" },

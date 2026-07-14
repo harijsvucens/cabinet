@@ -885,6 +885,100 @@ const META_ADS: CatalogEntry = {
   ],
 };
 
+const GOOGLE_ADS: CatalogEntry = {
+  id: "google-ads",
+  label: "Google Ads",
+  blurb: "Read campaigns, ad groups, and reporting data from Google Ads.",
+  iconSlug: "google-ads",
+  bgImage: "/integrations/google-ads-bg.webp",
+  logo: "/logos/google-ads.svg",
+  sourceUrl: "https://github.com/googleads/google-ads-mcp",
+  trustTier: "vendor",
+  vendorName: "Google",
+  authBackend: "token",
+  transport: "stdio",
+  mcpServerName: "cabinet-google-ads",
+  command: "pipx",
+  args: [
+    "run",
+    "--spec",
+    "git+https://github.com/googleads/google-ads-mcp.git",
+    "google-ads-mcp",
+  ],
+  serverEnv: {
+    GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_ADS_APPLICATION_CREDENTIALS}",
+    GOOGLE_PROJECT_ID: "${GOOGLE_ADS_PROJECT_ID}",
+    GOOGLE_ADS_DEVELOPER_TOKEN: "${GOOGLE_ADS_DEVELOPER_TOKEN}",
+    GOOGLE_ADS_LOGIN_CUSTOMER_ID: "${GOOGLE_ADS_LOGIN_CUSTOMER_ID}",
+  },
+  credentials: [
+    {
+      envKey: "GOOGLE_ADS_APPLICATION_CREDENTIALS",
+      label: "Application credentials JSON path",
+      kind: "filepath",
+      required: true,
+      placeholder: "/path/to/credentials.json",
+      hint: "Path to the Google Cloud Application Default Credentials JSON file. Run `gcloud auth application-default login` with the Google Ads API scope to create it.",
+    },
+    {
+      envKey: "GOOGLE_ADS_PROJECT_ID",
+      label: "Google Cloud Project ID",
+      kind: "plain",
+      required: true,
+      placeholder: "my-gcp-project",
+      hint: "The Google Cloud project with the Google Ads API enabled.",
+    },
+    {
+      envKey: "GOOGLE_ADS_DEVELOPER_TOKEN",
+      label: "Developer token",
+      kind: "secret",
+      required: true,
+      placeholder: "aBcDeFgHiJkLmNoPqR",
+      hint: "From the Google Ads API Center. Needs at least Explorer access. Stored in .cabinet.env (0600).",
+    },
+    {
+      envKey: "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+      label: "Manager account ID (optional)",
+      kind: "plain",
+      required: false,
+      placeholder: "123-456-7890",
+      hint: "Required only if accessing accounts through a manager (MCC) account.",
+    },
+  ],
+  actions: [
+    "Query campaigns, ad groups & ads",
+    "Pull performance metrics & reporting",
+    "Manage customer lists & audiences",
+    "Run raw GAQL queries",
+  ],
+  setupSteps: [
+    {
+      title: "Install pipx (one-time)",
+      body: "The server runs locally through pipx, a Python tool runner. macOS: `brew install pipx`. Linux: `sudo apt install pipx` or `pip install --user pipx`. Windows: `pip install --user pipx`.",
+      href: "https://pipx.pypa.io/stable/#install-pipx",
+    },
+    {
+      title: "Enable the Google Ads API",
+      body: "In Google Cloud Console, enable the Google Ads API for your project.",
+      href: "https://console.cloud.google.com/apis/library/googleads.googleapis.com",
+    },
+    {
+      title: "Get a developer token",
+      body: "In Google Ads, go to Tools & Settings → API Center. New tokens may automatically receive Explorer access; if not, request it.",
+      href: "https://ads.google.com/aw/apicenter",
+    },
+    {
+      title: "Create Application Default Credentials",
+      body: "Run the gcloud command below in a terminal. It opens a browser to authorize, then saves a credentials JSON file — paste its path into the field below.",
+      copy: "gcloud auth application-default login --scopes https://www.googleapis.com/auth/adwords,https://www.googleapis.com/auth/cloud-platform",
+    },
+    {
+      title: "Paste your credentials below",
+      body: "Enter the credentials file path, project ID, and developer token. They're stored in .cabinet.env (0600) and injected at runtime.",
+    },
+  ],
+};
+
 const STACKADAPT: CatalogEntry = {
   id: "stackadapt",
   label: "StackAdapt",
@@ -1264,6 +1358,7 @@ export const MCP_CATALOG: CatalogEntry[] = [
   TELEGRAM,
   LINKEDIN,
   META_ADS,
+  GOOGLE_ADS,
   STACKADAPT,
   ...EXTENDED,
 ];
