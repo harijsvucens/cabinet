@@ -53,6 +53,7 @@ const integrationMeta: Record<string, { label: string; color: string; bg: string
   "mixpanel":  { label: "Mixpanel",  color: "#7856FF", bg: "bg-[#7856FF]/10", icon: "📊" },
   "amplitude": { label: "Amplitude", color: "#1C1C1C", bg: "bg-[#1C1C1C]/10", icon: "📈" },
   "segment":   { label: "Segment",   color: "#52BD95", bg: "bg-[#52BD95]/10", icon: "🔗" },
+  "stackadapt": { label: "StackAdapt", color: "#111827", bg: "bg-[#111827]/10", icon: "SA" },
 
   // Email
   "sendgrid":  { label: "SendGrid",  color: "#1A82E2", bg: "bg-[#1A82E2]/10", icon: "📧" },

@@ -885,6 +885,66 @@ const META_ADS: CatalogEntry = {
   ],
 };
 
+const STACKADAPT: CatalogEntry = {
+  id: "stackadapt",
+  label: "StackAdapt",
+  blurb: "Read programmatic campaign delivery and reporting from StackAdapt.",
+  iconSlug: "stackadapt",
+  bgImage: "/integrations/stackadapt-bg.webp",
+  logo: "/logos/stackadapt.svg",
+  sourceUrl: "https://github.com/cabinetai/cabinet/tree/main/mcps/mcp-stackadapt",
+  trustTier: "cabinet",
+  authBackend: "token",
+  transport: "stdio",
+  mcpServerName: "cabinet-stackadapt",
+  command: "npx",
+  args: ["-y", "cabinet-mcp-stackadapt@0.1.0"],
+  localBuild: "mcps/mcp-stackadapt/dist/index.js",
+  serverEnv: {
+    STACKADAPT_API_TOKEN: "${STACKADAPT_API_TOKEN}",
+    STACKADAPT_API_URL: "${STACKADAPT_API_URL}",
+  },
+  credentials: [
+    {
+      envKey: "STACKADAPT_API_TOKEN",
+      label: "API token",
+      kind: "secret",
+      required: true,
+      placeholder: "sa_...",
+      hint: "A StackAdapt Public API token. Stored in .cabinet.env, never written literally into CLI config.",
+    },
+    {
+      envKey: "STACKADAPT_API_URL",
+      label: "GraphQL endpoint",
+      kind: "plain",
+      required: false,
+      placeholder: "https://api.stackadapt.com/graphql",
+      hint: "Optional. Leave blank for StackAdapt's production GraphQL endpoint.",
+    },
+  ],
+  actions: [
+    "Read campaign delivery",
+    "Summarize spend, impressions, clicks and conversions",
+    "Compare ROAS and efficiency metrics",
+    "Run advanced read-only GraphQL reports",
+  ],
+  setupSteps: [
+    {
+      title: "Create a StackAdapt Public API token",
+      body: "Create or copy a StackAdapt Public API token with access to the advertisers and campaigns you want agents to analyze.",
+      href: "https://docs.stackadapt.com/",
+    },
+    {
+      title: "Paste the token",
+      body: "Paste the token below. Cabinet stores it locally and injects it into the MCP server process at runtime.",
+    },
+    {
+      title: "Connect",
+      body: "Cabinet registers a read-only StackAdapt MCP server in your selected agent CLI configs. The server exposes queries only; mutations are rejected before they are sent.",
+    },
+  ],
+};
+
 /** Official public remote (HTTP + the CLI's PKCE OAuth). Nothing to paste. */
 function officialRemote(o: {
   id: string;
@@ -1204,6 +1264,7 @@ export const MCP_CATALOG: CatalogEntry[] = [
   TELEGRAM,
   LINKEDIN,
   META_ADS,
+  STACKADAPT,
   ...EXTENDED,
 ];
 

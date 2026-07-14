@@ -608,6 +608,16 @@ const RAW_INTEGRATIONS: IntegrationItem[] = [
     actions: ["Run queries", "Explore schemas", "Query Cortex & semantic views"],
   },
   {
+    id: "stackadapt",
+    name: "StackAdapt",
+    category: "data",
+    logo: L("stackadapt.svg"),
+    blurb: "Read programmatic campaign delivery, pacing, and ROAS.",
+    brand: "#111827",
+    implemented: false,
+    actions: ["Read campaign delivery", "Compare ROAS", "Run read-only GraphQL reports"],
+  },
+  {
     id: "bigquery",
     name: "BigQuery",
     category: "data",
@@ -743,6 +753,7 @@ const LAUNCHED = new Set([
   "slack",
   "snowflake",
   "meta-ads",
+  "stackadapt",
 ]);
 
 export const PREVIEW_INTEGRATIONS: IntegrationItem[] = RAW_INTEGRATIONS.map((i) => {
