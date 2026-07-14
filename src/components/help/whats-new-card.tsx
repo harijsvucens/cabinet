@@ -24,6 +24,18 @@ interface ReleaseEntry {
 
 const RELEASE_HIGHLIGHTS: ReleaseEntry[] = [
   {
+    version: "0.5.2",
+    date: "2026-07-14",
+    headline: "Desktop delivery and guided integration setup",
+    bullets: [
+      "🟢 Guided provider setup: install, sign in, and verify agent CLIs in one flow",
+      "🟢 A focused three-step Slack setup guide with screenshots and connection testing",
+      "🟢 Google Ads, Meta Ads, and StackAdapt integrations",
+      "🟢 Drag files and folders into Cabinet with progress and uploads up to 1 GB",
+      "🔵 Native macOS and Windows packages validated on hosted runners",
+    ],
+  },
+  {
     version: "0.5.0",
     date: "2026-07-04",
     headline: "Largest release since v0.4.0 (238 commits)",
