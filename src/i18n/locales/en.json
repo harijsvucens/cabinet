@@ -1155,6 +1155,10 @@
       "header": "Start from a template",
       "browseAll": "Browse all →"
     },
+    "integrations": {
+      "connectCta": "Connect your tools",
+      "connectedCta": "{{count}} connected — add more tools"
+    },
     "quickActions": {
       "shuffle": "Show different suggestions",
       "launch10Songs": "Launch 10 song-writing editors",
@@ -1859,6 +1863,8 @@
   },
   "sidebar": {
     "settings": "Settings",
+    "integrations": "Integrations",
+    "integrationsConnected": "Integrations — {{count}} connected",
     "createPage": "Create page",
     "new": "New",
     "newPage": "New page",
@@ -2073,6 +2079,7 @@
       "home": "Home",
       "agents": "Agents",
       "tasks": "Tasks",
+      "integrations": "Integrations",
       "ai": "AI",
       "menu": "Menu",
       "primaryAriaLabel": "Primary"

@@ -6,7 +6,7 @@ import { useTreeStore } from "@/stores/tree-store";
 import { selectDaemonLevel, useHealthStore } from "@/stores/health-store";
 import { ROOT_CABINET_PATH } from "@/lib/cabinets/paths";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
-import { Download, Loader2, RefreshCw } from "lucide-react";
+import { ArrowRight, Download, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/i18n/use-locale";
 import { flattenTree } from "@/lib/tree-utils";
@@ -44,6 +44,8 @@ import { gateAiRun } from "@/lib/cloud/client-tier";
 import { NewFileDialog } from "@/components/sidebar/new-file-dialog";
 import { useFileImport } from "@/components/sidebar/use-file-import";
 import { ProvidersEmptyBanner } from "@/components/home/providers-empty-banner";
+import { PREVIEW_INTEGRATIONS } from "@/lib/integrations/preview-catalog";
+import { useConnectedIntegrations } from "@/hooks/use-connected-integrations";
 
 type QuickAction = {
   /** Key under `home:quickActions.*` for the visible button label. */
@@ -508,6 +510,64 @@ function WorkspaceTile({
   );
 }
 
+// One-click path from home into the Integrations Hub. Connected connectors
+// lead the logo row so the strip doubles as a status glance; the rest are the
+// implemented catalog in gallery order. Suites cover their sub-products
+// (coveredBy), so those are skipped to avoid duplicate marks.
+function IntegrationsStrip() {
+  const { t } = useLocale();
+  const setSection = useAppStore((s) => s.setSection);
+  const connectedIds = useConnectedIntegrations();
+
+  const items = useMemo(() => {
+    const implemented = PREVIEW_INTEGRATIONS.filter(
+      (i) => i.implemented && !i.coveredBy && i.platform !== "macos"
+    );
+    const connected = implemented.filter((i) => connectedIds.has(i.id));
+    const rest = implemented.filter((i) => !connectedIds.has(i.id));
+    return [...connected, ...rest].slice(0, 7);
+  }, [connectedIds]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex justify-center">
+      <button
+        type="button"
+        onClick={() => setSection({ type: "integrations" })}
+        className={cn(
+          "group flex items-center gap-3 rounded-full border border-border/70 bg-card/60 ps-2 pe-3.5 py-1.5",
+          "hover:bg-secondary hover:border-border transition-colors cursor-pointer"
+        )}
+      >
+        <span className="flex items-center -space-x-1.5">
+          {items.map((item) => (
+            <span
+              key={item.id}
+              className="flex size-6 items-center justify-center overflow-hidden rounded-full border border-border bg-background"
+            >
+              {/* Brand marks are decorative — the CTA text carries the label. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.logo} alt="" className="size-3.5 object-contain" />
+            </span>
+          ))}
+        </span>
+        <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+          {connectedIds.size > 0
+            ? t("home:integrations.connectedCta", {
+                count: connectedIds.size,
+                defaultValue: "{{count}} connected — add more tools",
+              })
+            : t("home:integrations.connectCta", {
+                defaultValue: "Connect your tools",
+              })}
+        </span>
+        <ArrowRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors rtl:rotate-180" />
+      </button>
+    </div>
+  );
+}
+
 // Free-tier upsell footer: AI is paused, not removed. Dispatches the same
 // UPGRADE_GATE_EVENT the run-time gate uses (via gateAiRun, so the panel URL is
 // populated from cache), reusing the one upgrade modal mounted in the app shell.
@@ -926,6 +986,7 @@ export function HomeScreen() {
       </div>
 
       <div className="w-screen pb-8 pt-4 space-y-3">
+        <IntegrationsStrip />
         <div className="flex items-center justify-center gap-3">
           <h2 className="text-sm font-medium text-muted-foreground">
             {t("home:templates.header")}
