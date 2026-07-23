@@ -266,6 +266,14 @@ export function TurnBlock({
             </span>
           </>
         ) : null}
+        {turn.tokens?.reasoning ? (
+          <span
+            className="font-mono tabular-nums text-muted-foreground/60"
+            title="Reasoning tokens represent the model's internal thinking steps — invisible in the final text but billable at the output rate"
+          >
+            ({(turn.tokens.reasoning / 1000).toFixed(1)}k think)
+          </span>
+        ) : null}
         {turn.awaitingInput ? (
           <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
             <Pause className="size-2.5" /> awaiting input
