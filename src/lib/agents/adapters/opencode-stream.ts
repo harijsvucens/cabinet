@@ -36,7 +36,7 @@ export function createOpenCodeStreamAccumulator(): OpenCodeStreamAccumulator {
     buffer: "",
     display: "",
     sessionId: null,
-    usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 },
+    usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0 },
     hasUsage: false,
     costUsd: 0,
     messages: [],
@@ -115,7 +115,8 @@ function consumeLine(
         accumulator.hasUsage = true;
       }
       if (typeof tokens.reasoning === "number") {
-        accumulator.usage.outputTokens += tokens.reasoning;
+        accumulator.usage.reasoningTokens =
+          (accumulator.usage.reasoningTokens || 0) + tokens.reasoning;
         accumulator.hasUsage = true;
       }
       const cacheRead = tokens.cache?.read;
@@ -194,6 +195,12 @@ export function getOpenCodeUsage(
     accumulator.usage.cachedInputTokens > 0
   ) {
     usage.cachedInputTokens = accumulator.usage.cachedInputTokens;
+  }
+  if (
+    typeof accumulator.usage.reasoningTokens === "number" &&
+    accumulator.usage.reasoningTokens > 0
+  ) {
+    usage.reasoningTokens = accumulator.usage.reasoningTokens;
   }
   return usage;
 }

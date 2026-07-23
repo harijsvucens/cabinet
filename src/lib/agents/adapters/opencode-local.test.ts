@@ -46,7 +46,8 @@ printf '%s\n' \
   assert.equal(result.model, "openai/gpt-5.2-codex");
   assert.deepEqual(result.usage, {
     inputTokens: 100,
-    outputTokens: 25,
+    outputTokens: 20,
+    reasoningTokens: 5,
     cachedInputTokens: 30,
   });
   assert.equal(result.output, "Reading files.\nDone.");
