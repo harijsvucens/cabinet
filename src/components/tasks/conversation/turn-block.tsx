@@ -216,7 +216,7 @@ export function TurnBlock({
   const { t } = useLocale();
   const isUser = turn.role === "user";
   const totalTokens = turn.tokens
-    ? turn.tokens.input + turn.tokens.output + (turn.tokens.cache ?? 0)
+    ? turn.tokens.input + turn.tokens.output + (turn.tokens.cache ?? 0) + (turn.tokens.reasoning ?? 0)
     : null;
   const artifactPaths = collectArtifactPaths(turn);
   const agentLabel = agent ? getAgentDisplayName(agent) || "Agent" : "Agent";
