@@ -10,7 +10,7 @@ interface OpenCodeEventPayload {
       input?: number;
       output?: number;
       reasoning?: number;
-      cache?: { read?: number };
+      cache?: { read?: number; write?: number };
     };
     state?: { status?: string; error?: string };
     cost?: number;
@@ -36,7 +36,7 @@ export function createOpenCodeStreamAccumulator(): OpenCodeStreamAccumulator {
     buffer: "",
     display: "",
     sessionId: null,
-    usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0 },
+    usage: { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0, reasoningTokens: 0, cacheWriteInputTokens: 0 },
     hasUsage: false,
     costUsd: 0,
     messages: [],
@@ -124,6 +124,11 @@ function consumeLine(
         accumulator.usage.cachedInputTokens =
           (accumulator.usage.cachedInputTokens || 0) + cacheRead;
       }
+      const cacheWrite = tokens.cache?.write;
+      if (typeof cacheWrite === "number") {
+        accumulator.usage.cacheWriteInputTokens =
+          (accumulator.usage.cacheWriteInputTokens || 0) + cacheWrite;
+      }
     }
     if (typeof payload.part.cost === "number") {
       accumulator.costUsd += payload.part.cost;
@@ -201,6 +206,12 @@ export function getOpenCodeUsage(
     accumulator.usage.reasoningTokens > 0
   ) {
     usage.reasoningTokens = accumulator.usage.reasoningTokens;
+  }
+  if (
+    typeof accumulator.usage.cacheWriteInputTokens === "number" &&
+    accumulator.usage.cacheWriteInputTokens > 0
+  ) {
+    usage.cacheWriteInputTokens = accumulator.usage.cacheWriteInputTokens;
   }
   return usage;
 }
